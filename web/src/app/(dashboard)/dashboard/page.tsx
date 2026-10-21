@@ -70,6 +70,8 @@ export default function DashboardPage() {
               <th className="p-3">Trạng thái</th>
               <th className="w-40 p-3">CPU</th>
               <th className="w-40 p-3">RAM</th>
+                            <th className="p-3">Mạng</th>
+              <th className="p-3">Docker</th>
             </tr>
           </thead>
           <tbody>
@@ -90,6 +92,12 @@ export default function DashboardPage() {
                 <td className="p-3">
                   <Bar value={s.ram} />
                   <span className="text-xs opacity-70">{s.ram}%</span>
+                </td>
+                                <td className="p-3">{s.network} Mbps</td>
+                <td className="p-3">
+                  {s.containers
+                    ? `${s.containers.filter((c) => c.status === "RUNNING").length}/${s.containers.length}`
+                    : "-"}
                 </td>
               </tr>
             ))}

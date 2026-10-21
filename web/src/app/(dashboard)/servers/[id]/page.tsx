@@ -90,6 +90,37 @@ export default function ServerDetailPage() {
         <Metric label="RAM" value={server.ram} />
       </div>
 
+            <div className="rounded-lg border border-gray-500/30">
+        <h2 className="border-b border-gray-500/30 p-3 font-bold">
+          Docker container
+        </h2>
+        {server.containers && server.containers.length > 0 ? (
+          <ul>
+            {server.containers.map((c) => (
+              <li
+                key={c.name}
+                className="flex items-center justify-between border-b border-gray-500/30 p-3 last:border-b-0"
+              >
+                <div>
+                  <p className="font-medium">{c.name}</p>
+                  <p className="text-sm opacity-70">{c.image}</p>
+                </div>
+                <span
+                  className={`rounded px-2 py-1 text-sm ${
+                    c.status === "RUNNING"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {c.status === "RUNNING" ? "Đang chạy" : "Đã dừng"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="p-3 opacity-70">Không có container</p>
+        )}
+      </div>
       <div className="rounded-lg border border-gray-500/30">
         <h2 className="border-b border-gray-500/30 p-3 font-bold">
           Lịch sử cảnh báo

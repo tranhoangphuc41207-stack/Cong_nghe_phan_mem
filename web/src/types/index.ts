@@ -17,6 +17,7 @@ export interface Server {
   cpu: number;
   ram: number;
   network: number;
+    containers?: DockerContainer[];
 }
 
 export type AlertLevel = "CRITICAL" | "WARNING";
@@ -57,4 +58,10 @@ export interface SystemSettings {
   retentionDays: number;
   emailAlerts: boolean;
   soundAlerts: boolean;
+}
+
+export interface DockerContainer {
+  name: string;
+  image: string;
+  status: "RUNNING" | "STOPPED";
 }
