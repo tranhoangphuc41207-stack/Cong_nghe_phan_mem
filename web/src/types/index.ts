@@ -36,3 +36,11 @@ export interface Threshold {
   ram: number;
   offlineSeconds: number;
 }
+
+export interface AppUser {
+  id: string;
+  username: string;
+  fullName: string;
+  role: Role;
+  active: boolean;
+}
