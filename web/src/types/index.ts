@@ -50,3 +50,11 @@ export interface Room {
   name: string;
   racks: string[];
 }
+
+export interface SystemSettings {
+  systemName: string;
+  refreshSeconds: number;
+  retentionDays: number;
+  emailAlerts: boolean;
+  soundAlerts: boolean;
+}

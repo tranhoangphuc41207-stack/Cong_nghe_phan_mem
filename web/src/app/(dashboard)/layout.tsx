@@ -12,6 +12,11 @@ const MENU: { label: string; href: string; roles: Role[] }[] = [
     href: "/dashboard",
     roles: ["ADMIN", "OPERATOR", "TECHNICIAN"],
   },
+    {
+    label: "Cấu hình",
+    href: "/settings",
+    roles: ["ADMIN"],
+  },
   {
     label: "Máy chủ",
     href: "/servers",
