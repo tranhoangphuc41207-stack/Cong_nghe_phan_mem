@@ -18,3 +18,21 @@ export interface Server {
   ram: number;
   network: number;
 }
+
+export type AlertLevel = "CRITICAL" | "WARNING";
+
+export interface Alert {
+  id: string;
+  serverId: string;
+  serverName: string;
+  level: AlertLevel;
+  message: string;
+  time: string;
+  resolved: boolean;
+}
+
+export interface Threshold {
+  cpu: number;
+  ram: number;
+  offlineSeconds: number;
+}
