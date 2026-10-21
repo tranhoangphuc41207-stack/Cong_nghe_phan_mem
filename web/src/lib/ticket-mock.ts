@@ -1,4 +1,4 @@
-import { Ticket } from "@/types";
+ import { Ticket } from "@/types/ticket";
 
 // Dữ liệu giả để làm giao diện Ticket. Khi có API thật (KAN-64) thì thay bằng dữ liệu từ API.
 export const mockTechnicians = ["tech-an", "tech-binh", "tech-cuong"];

@@ -3,7 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 import { getUser } from "@/lib/auth";
 import { mockServers } from "@/lib/dashboard-mock";
 import { mockTechnicians, mockTickets } from "@/lib/ticket-mock";
-import { Ticket, TicketPriority, TicketStatus } from "@/types";
+import { Ticket, TicketPriority, TicketStatus } from "@/types/ticket";
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
   OPEN: "Mới tạo",
