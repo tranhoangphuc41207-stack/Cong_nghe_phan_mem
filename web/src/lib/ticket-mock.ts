@@ -1,0 +1,63 @@
+ import { Ticket } from "@/types/ticket";
+
+// Dữ liệu giả để làm giao diện Ticket. Khi có API thật (KAN-64) thì thay bằng dữ liệu từ API.
+export const mockTechnicians = ["tech-an", "tech-binh", "tech-cuong"];
+
+export const mockTickets: Ticket[] = [
+  {
+    id: "TK-001",
+    title: "CPU srv-db-01 vượt ngưỡng 85%",
+    description: "Cảnh báo CPU cao liên tục hơn 10 phút. Cần kiểm tra tiến trình và tản nhiệt.",
+    serverId: "2",
+    serverName: "srv-db-01",
+    priority: "HIGH",
+    status: "OPEN",
+    assignee: null,
+    alertId: "AL-101",
+    createdBy: "operator",
+    createdAt: "2026-10-20 09:30",
+    note: null,
+  },
+  {
+    id: "TK-002",
+    title: "srv-app-02 mất kết nối",
+    description: "Không nhận telemetry hơn 90 giây. Kiểm tra nguồn điện và dây mạng tại Rack A2.",
+    serverId: "3",
+    serverName: "srv-app-02",
+    priority: "CRITICAL",
+    status: "IN_PROGRESS",
+    assignee: "tech-an",
+    alertId: "AL-102",
+    createdBy: "operator",
+    createdAt: "2026-10-20 08:15",
+    note: "Đang kiểm tra cáp mạng tại Rack A2.",
+  },
+  {
+    id: "TK-003",
+    title: "Thay quạt tản nhiệt srv-web-01",
+    description: "Quạt kêu to bất thường, đề nghị thay quạt mới.",
+    serverId: "1",
+    serverName: "srv-web-01",
+    priority: "MEDIUM",
+    status: "RESOLVED",
+    assignee: "tech-binh",
+    alertId: null,
+    createdBy: "admin",
+    createdAt: "2026-10-19 14:00",
+    note: "Đã thay quạt, nhiệt độ về bình thường. Đề nghị đóng ticket.",
+  },
+  {
+    id: "TK-004",
+    title: "RAM srv-cache-01 đầy 90%",
+    description: "Container redis dùng quá nhiều RAM.",
+    serverId: "4",
+    serverName: "srv-cache-01",
+    priority: "LOW",
+    status: "CLOSED",
+    assignee: "tech-cuong",
+    alertId: "AL-098",
+    createdBy: "operator",
+    createdAt: "2026-10-18 10:00",
+    note: "Đã tăng giới hạn bộ nhớ và restart container.",
+  },
+];
