@@ -44,3 +44,9 @@ export interface AppUser {
   role: Role;
   active: boolean;
 }
+
+export interface Room {
+  id: string;
+  name: string;
+  racks: string[];
+}

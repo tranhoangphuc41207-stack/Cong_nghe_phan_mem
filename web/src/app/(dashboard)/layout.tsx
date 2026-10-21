@@ -23,6 +23,11 @@ const MENU: { label: string; href: string; roles: Role[] }[] = [
     roles: ["ADMIN", "OPERATOR", "TECHNICIAN"],
   },
     {
+    label: "Hạ tầng",
+    href: "/infrastructure",
+    roles: ["ADMIN", "OPERATOR"],
+  },
+    {
     label: "Người dùng",
     href: "/users",
     roles: ["ADMIN"],
