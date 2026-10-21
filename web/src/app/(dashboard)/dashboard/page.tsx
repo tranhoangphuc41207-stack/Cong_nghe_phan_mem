@@ -1,5 +1,10 @@
+"use client";
+import { useEffect, useState } from "react";
 import { mockServers } from "@/lib/dashboard-mock";
-import { ServerStatus } from "@/types";
+import { Server, ServerStatus } from "@/types";
+
+// Chu kỳ làm mới (giây). Sau này nối với trang Cấu hình hoặc Socket.IO.
+const REFRESH_SECONDS = 5;
 
 const STATUS_STYLE: Record<ServerStatus, string> = {
   ONLINE: "bg-green-100 text-green-700",
@@ -27,8 +32,37 @@ function StatCard({ title, value }: { title: string; value: number }) {
   );
 }
 
+// Dao động số liệu một chút để mô phỏng dữ liệu thời gian thực
+function jitter(value: number, step: number) {
+  const next = value + Math.round((Math.random() * 2 - 1) * step);
+  return Math.min(100, Math.max(1, next));
+}
+
+function simulate(list: Server[]): Server[] {
+  return list.map((s) => {
+    if (s.status === "OFFLINE") return s; // máy mất kết nối giữ nguyên
+    const cpu = jitter(s.cpu, 8);
+    const ram = jitter(s.ram, 4);
+    const network = Math.max(1, s.network + Math.round((Math.random() * 2 - 1) * 15));
+    const status: ServerStatus = cpu >= 85 || ram >= 90 ? "WARNING" : "ONLINE";
+    return { ...s, cpu, ram, network, status };
+  });
+}
+
 export default function DashboardPage() {
-  const servers = mockServers;
+  const [servers, setServers] = useState<Server[]>(mockServers);
+  const [running, setRunning] = useState(true);
+  const [updatedAt, setUpdatedAt] = useState("");
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => {
+      setServers((prev) => simulate(prev));
+      setUpdatedAt(new Date().toLocaleTimeString("vi-VN"));
+    }, REFRESH_SECONDS * 1000);
+    return () => clearInterval(timer);
+  }, [running]);
+
   const count = (s: ServerStatus) => servers.filter((x) => x.status === s).length;
 
   // Trung bình CPU, RAM của các máy đang hoạt động
@@ -40,7 +74,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-bold">Tổng quan hệ thống</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Tổng quan hệ thống</h1>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="opacity-70">
+            Làm mới mỗi {REFRESH_SECONDS} giây. Cập nhật lần cuối:{" "}
+            {updatedAt || "chưa cập nhật"}
+          </span>
+          <button
+            onClick={() => setRunning((r) => !r)}
+            className="rounded border border-gray-500/50 px-3 py-1 hover:bg-gray-500/20"
+          >
+            {running ? "Tạm dừng" : "Tiếp tục"}
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard title="Tổng số máy chủ" value={servers.length} />
@@ -70,7 +118,7 @@ export default function DashboardPage() {
               <th className="p-3">Trạng thái</th>
               <th className="w-40 p-3">CPU</th>
               <th className="w-40 p-3">RAM</th>
-                            <th className="p-3">Mạng</th>
+              <th className="p-3">Mạng</th>
               <th className="p-3">Docker</th>
             </tr>
           </thead>
@@ -93,7 +141,7 @@ export default function DashboardPage() {
                   <Bar value={s.ram} />
                   <span className="text-xs opacity-70">{s.ram}%</span>
                 </td>
-                                <td className="p-3">{s.network} Mbps</td>
+                <td className="p-3">{s.network} Mbps</td>
                 <td className="p-3">
                   {s.containers
                     ? `${s.containers.filter((c) => c.status === "RUNNING").length}/${s.containers.length}`
