@@ -47,6 +47,11 @@ const MENU: { label: string; href: string; roles: Role[] }[] = [
     href: "/hardware",
     roles: ["ADMIN", "OPERATOR"],
   },
+  {
+    label: "Báo cáo",
+    href: "/reports",
+    roles: ["ADMIN", "OPERATOR"],
+  },
   // Khi làm xong trang nào thì thêm dòng vào đây, ví dụ:
   // { label: "Người dùng", href: "/users", roles: ["ADMIN"] },
 ];
