@@ -1,36 +1,54 @@
-# 3. Yêu cầu quản lý người dùng
+# 3. Yêu cầu người dùng
 
-## 3.1. Mục đích
-Mô tả yêu cầu quản lý tài khoản người dùng của AR-IMMS: ai được xem, thêm, đổi vai trò và khóa tài khoản. Nội dung này được ghi theo giao diện Web Admin hiện có (`web/`) và mô tả hệ thống ở `01-overview.md`.
+## 3.1 Mục đích
 
-## 3.2. Vai trò
+Mô tả yêu cầu của người dùng đối với phần Web Admin (đăng nhập và quản lý tài khoản) của hệ thống AR-IMMS.
 
-| Vai trò | Quyền liên quan đến người dùng |
-|---|---|
-| `ADMIN` | Xem, thêm, đổi vai trò, khóa và mở khóa tài khoản |
-| `OPERATOR` | Không truy cập trang quản lý tài khoản |
-| `TECHNICIAN` | Không truy cập trang quản lý tài khoản |
+## 3.2 Vai trò và quyền
 
-Hệ thống xác thực bằng email/mật khẩu và JWT.
+| Vai trò | Quyền |
+| :--- | :--- |
+| **ADMIN** | Toàn quyền, gồm quản lý tài khoản, thêm/sửa/xóa máy chủ, đặt ngưỡng cảnh báo |
+| **OPERATOR** | Xem máy chủ, số liệu, cảnh báo; đổi trạng thái máy chủ |
+| **TECHNICIAN** | Xem máy chủ, số liệu, cảnh báo |
 
-## 3.3. Yêu cầu chức năng
+## 3.3 Dữ liệu người dùng
 
-| Mã | Yêu cầu | Vai trò | Giao diện |
-|---|---|---|---|
-| USR-01 | Xem danh sách người dùng: tên đăng nhập, họ tên, vai trò, trạng thái | `ADMIN` | Xong (dữ liệu giả) |
-| USR-02 | Thêm tài khoản gồm tên đăng nhập, họ tên, vai trò | `ADMIN` | Xong (dữ liệu giả) |
-| USR-03 | Đổi vai trò của người dùng | `ADMIN` | Xong (dữ liệu giả) |
-| USR-04 | Khóa và mở khóa tài khoản | `ADMIN` | Xong (dữ liệu giả) |
-| USR-05 | Chặn vai trò khác truy cập trang quản lý tài khoản | Tất cả | Xong |
+`id`, `fullName`, `email`, `role`, `isActive`, `createdAt`. 
 
-## 3.4. Quy tắc
-- Tên đăng nhập không được trùng.
-- Phải nhập đủ tên đăng nhập và họ tên khi thêm tài khoản.
-- `ADMIN` không được tự đổi vai trò hoặc tự khóa tài khoản của mình.
-- Vai trò chỉ gồm `ADMIN`, `OPERATOR`, `TECHNICIAN`.
+*Lưu ý: Hệ thống không bao giờ trả về mật khẩu.*
 
-## 3.5. Giới hạn hiện tại
-- Giao diện dùng dữ liệu giả, chưa nối API người dùng của Backend.
-- Backend đăng nhập bằng email, giao diện đang dùng tên đăng nhập, sẽ đổi khi nối API.
-- Form thêm tài khoản chưa có mật khẩu và tài khoản bị khóa chưa bị chặn đăng nhập (cần Backend).
-- Phân quyền mới ở giao diện, Backend kiểm tra bằng JWT.
+## 3.4 Yêu cầu chức năng
+
+| Mã | Yêu cầu | API | Vai trò |
+| :--- | :--- | :--- | :--- |
+| **USR-01** | Đăng nhập bằng email và mật khẩu | `POST /auth/login` | Tất cả |
+| **USR-02** | Xem danh sách và chi tiết người dùng | `GET /users`<br>`GET /users/:id` | ADMIN |
+| **USR-03** | Thêm người dùng (mật khẩu từ 6 ký tự) | `POST /users` | ADMIN |
+| **USR-04** | Khóa và mở khóa tài khoản | `PATCH /users/:id/deactivate`<br>`PATCH /users/:id/activate` | ADMIN |
+| **USR-05** | Đổi vai trò người dùng | `PATCH /users/:id/role` | ADMIN |
+
+## 3.5 Quy tắc và mã lỗi
+
+- **Token & Xác thực:**
+  - Token hết hạn sau 1 ngày.
+  - Mọi API (trừ đăng nhập) cần header `Authorization: Bearer <token>`.
+- **Phân quyền & Vai trò:**
+  - Vai trò mới có hiệu lực khi người đó đăng nhập lại; giao diện báo *"người dùng cần đăng nhập lại"*.
+  - Không được tự đổi vai trò của chính mình.
+- **Mã lỗi (HTTP Status Codes):**
+  - **401:** Sai thông tin hoặc token hết hạn, giao diện điều hướng về trang đăng nhập.
+  - **403:** Không có quyền.
+  - **404:** Không tồn tại.
+  - **409:** Trùng email hoặc tự đổi vai trò.
+  - **400:** Dữ liệu sai định dạng.
+
+## 3.6 Giao diện
+
+- Trang đăng nhập, trang quản lý tài khoản (chỉ dành cho **ADMIN**), menu hiển thị theo vai trò.
+- Thiết kế Figma: Login và Dashboard (1440x900).
+
+## 3.7 Giới hạn
+
+- Chưa có API nhật ký hoạt động (audit log).
+- Phần hiện tại web dùng dữ liệu giả (mock data), chưa nối API thật.
