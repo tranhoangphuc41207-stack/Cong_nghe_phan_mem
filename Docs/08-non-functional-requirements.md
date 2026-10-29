@@ -3,10 +3,6 @@
 ## 1. Mục đích và nguồn
 Tài liệu mô tả các yêu cầu về chất lượng của hệ thống AR-IMMS (hiệu năng, sẵn sàng, bảo mật, độ tin cậy, mở rộng, khả dụng, bảo trì), mức độ đã đáp ứng trong mã nguồn hiện tại và cách kiểm tra.
 
-- Nguồn yêu cầu: mục III.4 của tài liệu SRS (NFR-01 đến NFR-07).
-
-- Cập nhật lần cuối: 26/10/2026. **Cần cập nhật lại khi Backend thay đổi.**
-
 
 ## 1.2 Bảng tổng hợp
 
