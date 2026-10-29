@@ -143,7 +143,7 @@ Collector Agent phải tiếp tục gửi dữ liệu sau khi kết nối đư�
 
 ## 7. Tài liệu liên quan
 
--  <https://tranhoangphuc41207.atlassian.net/wiki/x/BICN> – Tổng quan, API và thuật ngữ dự án.
+- `01-overview.md` – Tổng quan, API và thuật ngữ dự án.
 - `02-auth-requirements.md` – Xác thực người dùng và Agent.
 - `04-server-requirements.md` – Danh mục Server/Node và thông tin thiết bị.
 - `06-alert-requirements.md` – Ngưỡng, phát hiện bất thường và vòng đời cảnh báo.
