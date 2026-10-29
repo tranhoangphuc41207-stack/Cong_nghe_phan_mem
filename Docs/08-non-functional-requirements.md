@@ -30,7 +30,7 @@ Tài liệu mô tả các yêu cầu về chất lượng của hệ thống AR-
 | mTLS | **Một phần** | Agent hỗ trợ (chứng chỉ client, kiểm tra chứng chỉ server). Backend chưa bật https; bản demo dùng API key qua http nên **đường truyền chưa được mã hóa** |
 | Audit cập nhật ticket, thao tác từ xa | **Chưa có** | Backend chưa có module ticket và thao tác từ xa |
 
-Lưu ý: dữ liệu Agent gửi (`/metrics`) và đăng nhập (`/auth`) cố ý không đi qua audit tự động, vì tần suất 5 giây một bản sẽ làm đầy bảng audit.
+Dữ liệu Agent gửi (`/metrics`) và đăng nhập (`/auth`) cố ý không đi qua audit tự động, vì tần suất 5 giây một bản sẽ làm đầy bảng audit.
 
 ### 1.3.2. Hiệu năng và độ tin cậy (NFR-01, NFR-04)
 
