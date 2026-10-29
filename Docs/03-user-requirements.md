@@ -46,7 +46,7 @@ Mô tả yêu cầu của người dùng đối với phần Web Admin (đăng n
 ## 3.6 Giao diện
 
 - Trang đăng nhập, trang quản lý tài khoản (chỉ dành cho **ADMIN**), menu hiển thị theo vai trò.
-- Thiết kế Figma: Login và Dashboard (1440x900).
+- Thiết kế Figma: Login và Dashboard (1440x900).https://www.figma.com/design/7HhxipMLd9Qw1tfOHjur9e/AR-IMMS-Web-Design?node-id=0-1&t=o9rpBGB7v2D1gTpW-1
 
 ## 3.7 Giới hạn
 
