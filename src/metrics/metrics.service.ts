@@ -60,4 +60,47 @@ export class MetricsService {
       take: Math.min(Math.max(limit, 1), 1000),
     });
   }
+
+  // Số liệu mới nhất của TẤT CẢ máy chủ (cho Dashboard).
+  // Máy chủ chưa có số liệu nào thì `latest` là null.
+  async findLatestAll() {
+    const rows: any[] = await this.historyRepo.query(`
+      SELECT s.id AS "serverId", s.server_code AS "serverCode", s.name, s.status,
+             s.cpu_threshold AS "cpuThreshold", s.ram_threshold AS "ramThreshold",
+             h.cpu_usage AS "cpuUsage", h.ram_usage AS "ramUsage",
+             h.network_in AS "networkIn", h.network_out AS "networkOut",
+             h.docker_info AS "dockerInfo", h.recorded_at AS "recordedAt"
+      FROM servers s
+      LEFT JOIN LATERAL (
+        SELECT cpu_usage, ram_usage, network_in, network_out, docker_info, recorded_at
+        FROM history
+        WHERE server_id = s.id
+        ORDER BY recorded_at DESC, id DESC
+        LIMIT 1
+      ) h ON true
+      ORDER BY s.id
+    `);
+
+    // numeric và bigint của Postgres về dạng chuỗi -> đổi sang số
+    const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+
+    return rows.map((r) => ({
+      serverId: r.serverId,
+      serverCode: r.serverCode,
+      name: r.name,
+      status: r.status,
+      cpuThreshold: num(r.cpuThreshold),
+      ramThreshold: num(r.ramThreshold),
+      latest: r.recordedAt
+        ? {
+            cpuUsage: num(r.cpuUsage),
+            ramUsage: num(r.ramUsage),
+            networkIn: num(r.networkIn),
+            networkOut: num(r.networkOut),
+            docker: r.dockerInfo ?? [],
+            recordedAt: r.recordedAt,
+          }
+        : null,
+    }));
+  }
 }

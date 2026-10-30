@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { Role } from '../common/role.enum';
 
 @Injectable()
 export class UsersService {
@@ -34,6 +35,7 @@ export class UsersService {
     return user;
   }
 
+  // dùng cho login: lấy kèm password_hash
   findByEmailWithPassword(email: string) {
     return this.repo
       .createQueryBuilder('u')
@@ -45,6 +47,16 @@ export class UsersService {
   async setActive(id: number, isActive: boolean) {
     const user = await this.findOne(id);
     user.isActive = isActive;
+    return this.repo.save(user);
+  }
+
+  // Đổi vai trò. Không cho tự đổi vai trò của chính mình để tránh mất quyền ADMIN cuối cùng.
+  async updateRole(id: number, role: Role, currentUserId: number) {
+    if (id === currentUserId) {
+      throw new ConflictException('Không thể tự đổi vai trò của chính mình');
+    }
+    const user = await this.findOne(id);
+    user.role = role;
     return this.repo.save(user);
   }
 }

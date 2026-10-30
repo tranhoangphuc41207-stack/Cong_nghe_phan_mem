@@ -19,7 +19,15 @@ export class MetricsController {
     return this.service.ingest(dto);
   }
 
-  // Dashboard xem lịch sử: dùng token đăng nhập, mọi role đều xem được
+  // Dashboard: số liệu mới nhất của mọi máy chủ.
+  // PHẢI đặt TRƯỚC @Get(':serverId'), nếu không 'latest' bị hiểu là serverId.
+  @UseGuards(JwtAuthGuard)
+  @Get('latest')
+  latest() {
+    return this.service.findLatestAll();
+  }
+
+  // Xem lịch sử của một máy chủ
   @UseGuards(JwtAuthGuard)
   @Get(':serverId')
   history(

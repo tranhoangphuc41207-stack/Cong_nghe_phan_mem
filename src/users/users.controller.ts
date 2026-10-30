@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Req, UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/roles.guard';
 import { Roles } from '../common/roles.decorator';
@@ -17,4 +20,13 @@ export class UsersController {
   @Get(':id') findOne(@Param('id', ParseIntPipe) id: number) { return this.usersService.findOne(id); }
   @Patch(':id/deactivate') deactivate(@Param('id', ParseIntPipe) id: number) { return this.usersService.setActive(id, false); }
   @Patch(':id/activate') activate(@Param('id', ParseIntPipe) id: number) { return this.usersService.setActive(id, true); }
+
+  @Patch(':id/role')
+  updateRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateUserRoleDto,
+    @Req() req: any,
+  ) {
+    return this.usersService.updateRole(id, dto.role, req.user.id);
+  }
 }
