@@ -1,185 +1,322 @@
 # 06\-alert\-requirements\.md
 
-## 1. Mục đích và phạm vi
+# 1. Giới thiệu
 
-Module Cảnh báo phát hiện tình trạng bất thường của hạ tầng từ dữ liệu telemetry, tạo và cập nhật cảnh báo, cho phép Operator cấu hình ngưỡng và xử lý cảnh báo, rồi chuyển cảnh báo cần can thiệp thành ticket bảo trì.
+## 1.1. Mục đích
 
-**Trong phạm vi**
+Tài liệu mô tả các yêu cầu của module Alerts: tự động phát hiện sự cố từ số liệu giám sát (telemetry), tạo cảnh báo, chống tạo cảnh báo trùng, tự đóng cảnh báo khi sự cố hết, và cho phép người vận hành xem, xác nhận và đóng cảnh báo.
 
-- Cấu hình ngưỡng cảnh báo (Operator).
-- Tự động phát hiện bất thường: vượt ngưỡng CPU, RAM, Network; trạng thái container; mất kết nối (node không gửi telemetry quá 90 giây).
-- Tạo, cập nhật, gộp cảnh báo trùng và quản lý vòng đời cảnh báo.
-- Xem, lọc, xác nhận cảnh báo trên Web; tạo ticket từ cảnh báo.
-- Đẩy cảnh báo theo thời gian thực qua <http://Socket.IO>  tới Web và Mobile AR.
+Tài liệu làm cơ sở thống nhất giữa các thành viên khi thiết kế, lập trình, kiểm thử và tích hợp với Web Admin, Collector Agent và ứng dụng di động AR.
 
-**Ngoài phạm vi (thuộc module khác)**
+## 1.2. Phạm vi
 
-- Thu thập telemetry (module `metrics`, Collector Agent): module này chỉ *nhận* dữ liệu để đánh giá.
-- Vòng đời và nghiệp vụ ticket (module `ticket`): module này chỉ tạo ticket từ cảnh báo và nhận sự kiện đóng ticket.
-- Ghi nhật ký kiểm toán (module `audit-logs`, file 07): module này gọi dịch vụ ghi log.
+Thuộc phạm vi của tài liệu này:
 
-## 2. Tác nhân
+- Đánh giá số liệu giám sát và phát hiện vượt ngưỡng CPU, RAM, container Docker không chạy.
 
-| Tác nhân | Quyền với cảnh báo |
+- Tạo cảnh báo, phân mức nghiêm trọng, chống trùng lặp, tự đóng cảnh báo.
+
+- Xem danh sách (có lọc, phân trang) và chi tiết cảnh báo.
+
+- Xác nhận (acknowledge) và đóng (resolve) cảnh báo.
+
+- Ghi nhật ký các thao tác trên cảnh báo.
+
+Không thuộc phạm vi (được mô tả ở tài liệu khác): đăng nhập (02), người dùng (03), máy chủ và ngưỡng cấu hình (04), nhận và lưu số liệu (05), nhật ký hoạt động (07), yêu cầu phi chức năng tổng hợp (08).
+
+## 1.3. Tài liệu tham chiếu
+
+- Đề bài dự án AR-IMMS (Project Công nghệ phần mềm).
+
+- Mã nguồn Backend NestJS, nhánh KAN-71: src/alerts (controller, service, entity), src/metrics (nơi gọi đánh giá cảnh báo).
+
+- Tệp database.sql: bảng alerts, tickets và chỉ mục idx\_alerts\_server\_status.
+
+## 1.4. Thuật ngữ
+
+|  |  |
 | --- | --- |
-| System Operator | Toàn quyền trên Web: xem, lọc, cấu hình ngưỡng, xác nhận, đóng cảnh báo, tạo ticket |
-| System Administrator | Chỉ xem số lượng cảnh báo đang mở trên Dashboard sức khỏe (SA-02, FR-A3). Không cấu hình ngưỡng, không xử lý cảnh báo |
-| Technician | Chỉ xem cảnh báo của thiết bị đang xử lý trên Mobile AR (SM-05), chỉ đọc |
-| Automated Monitoring System | Tạo và cập nhật cảnh báo, tự chuyển sang Resolved khi bình thường trở lại |
+| **Thuật ngữ** | **Giải thích** |
+| Cảnh báo (Alert) | Bản ghi cho biết một máy chủ đang gặp sự cố cần chú ý. |
+| Telemetry | Số liệu giám sát do Collector Agent gửi định kỳ về Backend. |
+| Ngưỡng | Mức sử dụng CPU hoặc RAM (%) cấu hình riêng cho từng máy chủ. |
+| Acknowledge | Xác nhận đã tiếp nhận cảnh báo, đang xử lý. |
+| Resolve | Đóng cảnh báo, sự cố đã được giải quyết. |
+| Cảnh báo đang hoạt động | Cảnh báo ở trạng thái OPEN hoặc ACKNOWLEDGED. |
 
-## 3. Yêu cầu chức năng
+# 2. Tổng quan module
 
-### 3.1 Cấu hình ngưỡng (FR-O5, UC-08)
+## 2.1. Vai trò trong hệ thống
 
-| Mã | Yêu cầu | Ưu tiên |
+Mỗi lần Collector Agent gửi số liệu (POST /metrics), module Metrics tìm máy chủ theo serverCode rồi gọi hàm đánh giá của module Alerts. Hàm này so sánh số liệu với ngưỡng của máy chủ, tạo hoặc đóng cảnh báo, và trả về danh sách loại cảnh báo đang vi phạm để Metrics đưa vào phản hồi cho Agent.
+
+Người vận hành dùng các API của module để theo dõi và xử lý cảnh báo. Phiếu bảo trì (tickets) có thể tham chiếu đến một cảnh báo qua cột alert\_id.
+
+## 2.2. Tác nhân và quyền
+
+|  |  |  |
 | --- | --- | --- |
-| ALT-FR-01 | Operator xem danh sách ngưỡng hiện hành theo phạm vi và chỉ số | Must |
-| ALT-FR-02 | Operator tạo, sửa ngưỡng theo **chỉ số** (CPU, RAM, Network, trạng thái container) và **phạm vi** (toàn hệ thống, rack hoặc node) | Must |
-| ALT-FR-03 | Mỗi ngưỡng có mức **Warning** và **Critical** và thời gian duy trì (giây) trước khi phát cảnh báo, để tránh cảnh báo do dao động ngắn | Must |
-| ALT-FR-04 | Khi có nhiều ngưỡng cùng áp dụng cho một node, ưu tiên theo thứ tự: node, rack, toàn hệ thống (đề xuất) | Should |
-| ALT-FR-05 | Kiểm tra hợp lệ: CPU và RAM trong khoảng 0–100%; ngưỡng Warning nhỏ hơn ngưỡng Critical; thời gian duy trì là số nguyên không âm | Must |
-| ALT-FR-06 | Ngưỡng mới áp dụng cho các lần đánh giá telemetry kế tiếp, không cần khởi động lại hệ thống | Must |
-| ALT-FR-07 | Mọi thay đổi ngưỡng ghi audit log gồm giá trị cũ và mới | Must |
-| ALT-FR-08 | Hệ thống có bộ ngưỡng mặc định ban đầu (đề xuất: CPU và RAM Warning 70%, Critical 85%, khớp ngưỡng màu hiển thị ở Dashboard hiện tại) | Should |
+| **Tác nhân** | **Mô tả** | **Quyền với module Alerts** |
+| ADMIN | Quản trị viên. | Xem, xác nhận, đóng cảnh báo. |
+| OPERATOR | Nhân viên vận hành. | Xem, xác nhận, đóng cảnh báo. |
+| TECHNICIAN | Kỹ thuật viên hiện trường. | Chỉ xem. |
+| Hệ thống (Metrics) | Gọi đánh giá khi nhận số liệu. | Tự động tạo và tự động đóng cảnh báo. |
 
-### 3.2 Phát hiện bất thường (FR-M2, UC-15)
+## 2.3. Quan hệ với các module khác
 
-| Mã | Yêu cầu | Ưu tiên |
-| --- | --- | --- |
-| ALT-FR-10 | Với mỗi telemetry nhận được, Backend so sánh CPU, RAM, Network với ngưỡng áp dụng và xác định mức Normal, Warning hoặc Critical | Must |
-| ALT-FR-11 | Chỉ phát cảnh báo khi giá trị vượt ngưỡng liên tục trong thời gian duy trì đã cấu hình | Must |
-| ALT-FR-12 | Node không gửi telemetry quá **90 giây** được đặt trạng thái OFFLINE và tạo cảnh báo mất kết nối mức Critical | Must |
-| ALT-FR-13 | Phát hiện container ngừng hoặc khởi động lại liên tục từ dữ liệu trạng thái Docker Container và tạo cảnh báo | Should |
-| ALT-FR-14 | Khi node gửi lại telemetry sau khi OFFLINE, trạng thái trở về ONLINE hoặc WARNING tùy giá trị mới nhất | Must |
-| ALT-FR-15 | Cảnh báo bảo hành sắp hết hạn tạo từ dữ liệu tài sản, số ngày báo trước cấu hình được (đề xuất mặc định 30 ngày) | Could |
+|  |  |
+| --- | --- |
+| **Module** | **Quan hệ với Alerts** |
+| metrics (05) | Gọi AlertsService.evaluate mỗi lần nhận số liệu và đưa kết quả vào phản hồi. |
+| servers (04) | Cung cấp ngưỡng cpuThreshold, ramThreshold. Cảnh báo tham chiếu server\_id. |
+| users (03) | Lưu người xác nhận cảnh báo (acknowledged\_by). |
+| audit-logs (07) | Tự ghi nhật ký thao tác xác nhận và đóng cảnh báo. |
+| tickets | Phiếu bảo trì có thể gắn với cảnh báo qua alert\_id. |
 
-### 3.3 Tạo, gộp và cập nhật cảnh báo (FR-M3)
+# 3. Yêu cầu chức năng
 
-| Mã | Yêu cầu | Ưu tiên |
-| --- | --- | --- |
-| ALT-FR-20 | Khi phát hiện bất thường, hệ thống tạo cảnh báo mới ở trạng thái **Open**, gắn mã cảnh báo duy nhất | Must |
-| ALT-FR-21 | **Gộp cảnh báo trùng (Duplicate Alert Suppression):** nếu đã có cảnh báo đang Open hoặc Acknowledged cùng khóa (node + loại + chỉ số + container nếu có) thì không tạo mới; chỉ tăng số lần lặp, cập nhật thời điểm gần nhất, giá trị hiện tại | Must |
-| ALT-FR-22 | Nếu mức độ tăng (Warning lên Critical) trong khi cảnh báo còn mở thì cập nhật mức độ của cảnh báo hiện có và đẩy sự kiện cập nhật | Must |
-| ALT-FR-23 | Khi giá trị trở lại dưới ngưỡng Warning trong số lần lấy mẫu liên tiếp (đề xuất 3 lần) thì hệ thống tự chuyển cảnh báo sang **Resolved** | Must |
-| ALT-FR-24 | Nếu bất thường tái phát khi cảnh báo đang Resolved nhưng chưa Closed thì mở lại (về Open) thay vì tạo cảnh báo mới (đề xuất) | Should |
-| ALT-FR-25 | Cảnh báo đã Closed không bị mở lại; tái phát sau đó tạo cảnh báo mới | Must |
+Tóm tắt các yêu cầu chức năng:
 
-### 3.4 Vòng đời cảnh báo
-
-```
-            (hệ thống tạo)
-                 │
-                 ▼
-              [Open] ──Operator xác nhận──► [Acknowledged]
-                 │                               │
-                 └──── bình thường trở lại ──────┤
-                                                 ▼
-                                            [Resolved] ──Operator đóng / ticket đóng──► [Closed]
-                                                 │
-                                    tái phát ────┘ (về Open, đề xuất)
-```
-
-| Chuyển trạng thái | Ai thực hiện | Điều kiện |
-| --- | --- | --- |
-| Open → Acknowledged | Operator | Có thể kèm ghi chú; lưu người xác nhận, thời điểm |
-| Open / Acknowledged → Resolved | Hệ thống (tự động) hoặc Operator | Telemetry bình thường, hoặc ticket liên quan chuyển Resolved |
-| Resolved → Closed | Operator | Operator đóng thủ công, hoặc tự động khi ticket liên quan được duyệt đóng (FR-O6) |
-| Resolved → Open | Hệ thống | Tái phát trước khi Closed (đề xuất) |
-
-Mọi chuyển trạng thái ghi audit log (xem file 07).
-
-### 3.5 Xem và xử lý cảnh báo trên Web (SO-04)
-
-| Mã | Yêu cầu | Ưu tiên |
-| --- | --- | --- |
-| ALT-FR-30 | Danh sách cảnh báo hiển thị: mã, node, loại, mức độ, thời điểm phát sinh, số lần lặp, trạng thái, ticket liên quan | Must |
-| ALT-FR-31 | Thẻ thống kê số cảnh báo theo 4 trạng thái Open, Acknowledged, Resolved, Closed | Must |
-| ALT-FR-32 | Lọc theo trạng thái, mức độ, node, khoảng thời gian; tìm theo mã cảnh báo; phân trang | Must |
-| ALT-FR-33 | Cảnh báo mới và cảnh báo được cập nhật xuất hiện trên danh sách theo thời gian thực, không cần tải lại trang | Must |
-| ALT-FR-34 | Xem chi tiết cảnh báo: giá trị ngưỡng, giá trị hiện tại, lịch sử thay đổi trạng thái, node liên quan | Must |
-| ALT-FR-35 | Operator xác nhận cảnh báo (Acknowledge) | Must |
-| ALT-FR-36 | Operator đóng cảnh báo đã Resolved | Must |
-| ALT-FR-37 | Operator tạo ticket từ cảnh báo; ticket tự điền node, mô tả, mức độ và lưu tham chiếu đến cảnh báo gốc; cảnh báo hiển thị liên kết đến ticket | Must |
-| ALT-FR-38 | Mỗi cảnh báo chỉ gắn một ticket đang mở tại một thời điểm (đề xuất) | Should |
-| ALT-FR-39 | Dashboard (SA-02 và SO-01) hiển thị số cảnh báo đang mở (Open + Acknowledged) | Must |
-
-### 3.6 Truyền thời gian thực (FR-M4)
-
-| Mã | Yêu cầu | Ưu tiên |
-| --- | --- | --- |
-| ALT-FR-40 | Backend phát sự kiện <http://Socket.IO>  `alert.created`, `alert.updated` đến Web và Mobile AR đang kết nối | Must |
-| ALT-FR-41 | Chỉ gửi sự kiện cho người dùng có quyền xem cảnh báo (Operator trên Web; Technician theo thiết bị được giao) | Should |
-| ALT-FR-42 | Máy khách mất kết nối <http://Socket.IO>  phải tải lại dữ liệu mới nhất khi kết nối lại | Should |
-
-## 4. Mô hình dữ liệu đề xuất
-
-**Alert**
-
-| Trường | Kiểu | Ghi chú |
-| --- | --- | --- |
-| id | UUID | Khóa chính |
-| code | string | Mã hiển thị, duy nhất, ví dụ `ALT-20261028-0001` |
-| nodeId | FK | Node phát sinh cảnh báo |
-| type | enum | `THRESHOLD_EXCEEDED`, `NODE_OFFLINE`, `CONTAINER_DOWN`, `WARRANTY_EXPIRING` |
-| metric | enum, null | `CPU`, `RAM`, `NETWORK`, `CONTAINER` |
-| severity | enum | `WARNING`, `CRITICAL` |
-| status | enum | `OPEN`, `ACKNOWLEDGED`, `RESOLVED`, `CLOSED` |
-| dedupKey | string | node + loại + chỉ số + container; có chỉ mục |
-| thresholdValue / currentValue | number, null | Ngưỡng bị vượt và giá trị hiện tại |
-| message | string | Mô tả cảnh báo |
-| firstOccurredAt / lastOccurredAt | datetime |  |
-| occurrenceCount | int | Số lần lặp, bắt đầu là 1 |
-| acknowledgedBy / acknowledgedAt | FK, datetime |  |
-| resolvedAt, closedBy, closedAt |  |  |
-| ticketId | FK, null | Ticket gắn với cảnh báo |
-
-**AlertThreshold**
-
-| Trường | Kiểu | Ghi chú |
-| --- | --- | --- |
-| id | UUID |  |
-| scope / scopeId | enum, FK | `GLOBAL`, `RACK`, `NODE` |
-| metric | enum | `CPU`, `RAM`, `NETWORK`, `CONTAINER` |
-| warningValue, criticalValue | number |  |
-| durationSeconds | int | Thời gian duy trì |
-| enabled | boolean |  |
-| updatedBy, updatedAt | FK, datetime |  |
-
-## 5. API đề xuất (NestJS, tiền tố `/api/alerts`)
-
-| Phương thức | Đường dẫn | Chức năng | Vai trò |
+|  |  |  |  |
 | --- | --- | --- | --- |
-| GET | `/alerts` | Danh sách, lọc, phân trang | Operator |
-| GET | `/alerts/summary` | Số lượng theo trạng thái | Operator, Administrator |
-| GET | `/alerts/:id` | Chi tiết | Operator, Technician (theo thiết bị) |
-| PATCH | `/alerts/:id/acknowledge` | Xác nhận | Operator |
-| PATCH | `/alerts/:id/close` | Đóng | Operator |
-| POST | `/alerts/:id/tickets` | Tạo ticket từ cảnh báo | Operator |
-| GET | `/alert-thresholds` | Xem ngưỡng | Operator |
-| PUT | `/alert-thresholds/:id` | Sửa ngưỡng | Operator |
-| POST | `/alert-thresholds` | Thêm ngưỡng | Operator |
+| **Mã** | **Tên yêu cầu** | **API / Cách kích hoạt** | **Quyền** |
+| FR-ALR-01 | Phát hiện vượt ngưỡng CPU và RAM | Tự động khi nhận số liệu | Hệ thống |
+| FR-ALR-02 | Phát hiện container Docker không chạy | Tự động khi nhận số liệu | Hệ thống |
+| FR-ALR-03 | Phân mức nghiêm trọng | Tự động | Hệ thống |
+| FR-ALR-04 | Chống tạo cảnh báo trùng | Tự động | Hệ thống |
+| FR-ALR-05 | Tự đóng cảnh báo khi trở lại bình thường | Tự động | Hệ thống |
+| FR-ALR-06 | Xem danh sách cảnh báo | GET /alerts | Mọi vai trò |
+| FR-ALR-07 | Xem chi tiết cảnh báo | GET /alerts/:id | Mọi vai trò |
+| FR-ALR-08 | Xác nhận cảnh báo | PATCH /alerts/:id/acknowledge | ADMIN, OPERATOR |
+| FR-ALR-09 | Đóng cảnh báo thủ công | PATCH /alerts/:id/resolve | ADMIN, OPERATOR |
+| FR-ALR-10 | Ghi nhật ký thao tác trên cảnh báo | Tự động (audit-logs) | Hệ thống |
 
-Quyền truy cập kiểm tra tại Backend bằng RBAC; ẩn menu ở Web chỉ để thuận tiện.
+ 
 
-## 6. Yêu cầu phi chức năng
+### FR-ALR-01. Phát hiện vượt ngưỡng CPU và RAM
 
-| Mã | Yêu cầu |
+|  |  |
 | --- | --- |
-| ALT-NFR-01 | Từ lúc Backend nhận telemetry vượt ngưỡng đến lúc cảnh báo hiện trên Web không quá 10 giây ở điều kiện thử nghiệm Mini Data Center (đề xuất, cần đối chiếu NFR của nhóm) |
-| ALT-NFR-02 | Phát hiện mất kết nối đúng ngưỡng 90 giây, sai lệch không quá một chu kỳ thu telemetry |
-| ALT-NFR-03 | Gộp cảnh báo trùng phải hoạt động đúng khi nhiều telemetry đến đồng thời: không tạo hai cảnh báo cùng `dedupKey` đang mở (dùng ràng buộc duy nhất hoặc khóa giao dịch) |
-| ALT-NFR-04 | Danh sách cảnh báo hỗ trợ phân trang phía Backend, thời gian phản hồi dưới 2 giây với 100.000 bản ghi (đề xuất) |
-| ALT-NFR-05 | Truy cập API cảnh báo yêu cầu JWT hợp lệ và đúng vai trò (liên quan NFR-03) |
-| ALT-NFR-06 | Bảng cảnh báo giữ lịch sử, không xóa vật lý; thời gian lưu trữ theo chính sách chung của hệ thống |
+| **Kích hoạt** | Mỗi lần Backend nhận số liệu từ Collector Agent (POST /metrics). |
+| **Đầu vào** | Máy chủ (đã tìm theo serverCode) với cpuThreshold và ramThreshold.Số liệu: cpuUsage, ramUsage (0 đến 100), networkIn, networkOut, danh sách container, thời điểm đo. |
+| **Xử lý** | Loại HIGH\_CPU: vi phạm khi cpuUsage lớn hơn cpuThreshold.Loại HIGH\_RAM: vi phạm khi ramUsage lớn hơn ramThreshold.Dấu bằng không vi phạm: chỉ vượt hẳn ngưỡng mới tạo cảnh báo. |
+| **Kết quả** | Tạo cảnh báo mới (trạng thái OPEN) nếu chưa có cảnh báo hoạt động cùng loại (xem FR-ALR-04). Trả về danh sách loại đang vi phạm, ví dụ \["HIGH\_CPU"\]. |
+| **Nội dung cảnh báo** | Ví dụ: "CPU usage reached 92%, exceeding the 80% threshold". |
 
-## 7. Tiêu chí chấp nhận (mẫu)
+ 
 
-1. **Vượt ngưỡng:** Cho node có ngưỡng CPU Warning 70%, Critical 85%, thời gian duy trì 30 giây. Khi CPU ≥ 85% liên tục 30 giây, hệ thống tạo đúng một cảnh báo Critical trạng thái Open và Web hiển thị cảnh báo đó mà không cần tải lại.
-2. **Gộp trùng:** Khi CPU tiếp tục vượt ngưỡng sau đó, không có cảnh báo mới; cảnh báo hiện có tăng số lần lặp và cập nhật thời điểm gần nhất.
-3. **Mất kết nối:** Khi node không gửi dữ liệu 91 giây, node chuyển OFFLINE và có một cảnh báo `NODE_OFFLINE` mức Critical.
-4. **Xác nhận:** Operator nhấn Acknowledge, trạng thái chuyển thành Acknowledged, ghi người xác nhận, thời điểm, và có một bản ghi audit log.
-5. **Tự giải quyết:** Khi CPU xuống dưới 70% trong 3 lần lấy mẫu liên tiếp, cảnh báo chuyển sang Resolved.
-6. **Ticket từ cảnh báo:** Operator chọn Create Ticket, ticket mới ở trạng thái Open, có tham chiếu cảnh báo gốc; mở lại cảnh báo thấy liên kết ticket.
-7. **Phân quyền:** Administrator gọi API xác nhận cảnh báo nhận lỗi từ chối quyền; Technician gọi API sửa ngưỡng nhận lỗi từ chối quyền.
-8. **Ngưỡng sai:** Nhập Warning 90, Critical 80 bị từ chối kèm thông báo lỗi.
+### FR-ALR-02. Phát hiện container Docker không chạy
 
+|  |  |
+| --- | --- |
+| **Kích hoạt** | Mỗi lần nhận số liệu có kèm danh sách container. |
+| **Xử lý** | Loại DOCKER\_DOWN: vi phạm khi có ít nhất một container có status khác "running" (ví dụ exited, paused). |
+| **Kết quả** | Tạo cảnh báo mức WARNING, nội dung liệt kê tên các container không chạy, ví dụ "Docker container not running: redis, nginx". |
+| **Ghi chú** | Nếu số liệu không có danh sách container thì coi như không vi phạm. |
+
+ 
+
+### FR-ALR-03. Phân mức nghiêm trọng
+
+|  |  |
+| --- | --- |
+| **Xử lý** | HIGH\_CPU: CRITICAL khi cpuUsage từ 95% trở lên, ngược lại WARNING.HIGH\_RAM: CRITICAL khi ramUsage từ 95% trở lên, ngược lại WARNING.DOCKER\_DOWN: luôn WARNING. |
+| **Ghi chú** | Mốc 95% đang cố định trong mã nguồn, chưa cấu hình được. |
+
+ 
+
+### FR-ALR-04. Chống tạo cảnh báo trùng
+
+|  |  |
+| --- | --- |
+| **Mô tả** | Một máy chủ chỉ có tối đa một cảnh báo hoạt động cho mỗi loại cảnh báo tại một thời điểm. |
+| **Xử lý** | Khi phát hiện vi phạm, hệ thống tìm cảnh báo cùng máy chủ, cùng loại, đang ở trạng thái OPEN hoặc ACKNOWLEDGED. Nếu đã có thì không tạo mới. Nếu chưa có thì tạo mới. |
+| **Kết quả** | Dù Agent gửi số liệu vượt ngưỡng liên tục mỗi 5 giây, chỉ có một cảnh báo được tạo cho đến khi cảnh báo đó được đóng. |
+| **Liên hệ đề bài** | Đáp ứng yêu cầu hạn chế cảnh báo trùng lặp. |
+
+ 
+
+### FR-ALR-05. Tự đóng cảnh báo khi trở lại bình thường
+
+|  |  |
+| --- | --- |
+| **Xử lý** | Khi một loại cảnh báo không còn vi phạm trong lần nhận số liệu hiện tại và đang có cảnh báo hoạt động cùng loại, hệ thống chuyển cảnh báo đó sang RESOLVED. |
+| **Áp dụng cho** | Cả cảnh báo OPEN và ACKNOWLEDGED. |
+| **Ghi chú** | Việc tự đóng không lưu thời điểm đóng và không phân biệt với đóng thủ công (xem mục 8). Việc tự đóng không đi qua API nên không tạo bản ghi nhật ký hoạt động. |
+
+ 
+
+### FR-ALR-06. Xem danh sách cảnh báo
+
+|  |  |
+| --- | --- |
+| **Tác nhân** | Mọi người dùng đã đăng nhập. |
+| **API** | GET /alerts |
+| **Tham số** | status: OPEN, ACKNOWLEDGED hoặc RESOLVED (không phân biệt hoa thường).severity: WARNING hoặc CRITICAL (không phân biệt hoa thường).serverId: số nguyên, lọc theo máy chủ.page: mặc định 1. limit: mặc định 50, tối thiểu 1, tối đa 200. |
+| **Xử lý** | Lọc theo các tham số có truyền, sắp xếp mới nhất trước (id giảm dần), phân trang. |
+| **Kết quả** | 200: { data, total, page, limit } với total là tổng số bản ghi khớp bộ lọc.400: serverId không phải số, hoặc page, limit không phải số nguyên.401: thiếu hoặc sai token. |
+
+ 
+
+### FR-ALR-07. Xem chi tiết cảnh báo
+
+|  |  |
+| --- | --- |
+| **API** | GET /alerts/:id |
+| **Tác nhân** | Mọi người dùng đã đăng nhập. |
+| **Kết quả** | 200: thông tin cảnh báo.404: "Không tìm thấy cảnh báo".400: id không phải số nguyên. |
+
+ 
+
+### FR-ALR-08. Xác nhận cảnh báo
+
+|  |  |
+| --- | --- |
+| **Tác nhân** | ADMIN, OPERATOR. |
+| **API** | PATCH /alerts/:id/acknowledge |
+| **Điều kiện** | Cảnh báo phải đang ở trạng thái OPEN. |
+| **Xử lý** | Chuyển trạng thái sang ACKNOWLEDGED, lưu người xác nhận (acknowledgedBy là id người dùng đang đăng nhập) và thời điểm xác nhận (acknowledgedAt). |
+| **Kết quả** | 200: cảnh báo sau khi cập nhật.403: vai trò TECHNICIAN.404: không tìm thấy cảnh báo.409: "Chỉ xác nhận được cảnh báo đang ở trạng thái OPEN". |
+
+ 
+
+### FR-ALR-09. Đóng cảnh báo thủ công
+
+|  |  |
+| --- | --- |
+| **Tác nhân** | ADMIN, OPERATOR. |
+| **API** | PATCH /alerts/:id/resolve |
+| **Điều kiện** | Cảnh báo chưa ở trạng thái RESOLVED (đóng được từ OPEN hoặc ACKNOWLEDGED). |
+| **Xử lý** | Chuyển trạng thái sang RESOLVED. |
+| **Kết quả** | 200: cảnh báo sau khi cập nhật.403: vai trò TECHNICIAN.404: không tìm thấy cảnh báo.409: "Cảnh báo đã được đóng trước đó". |
+| **Ghi chú** | Nếu sự cố vẫn còn khi đóng thủ công, lần nhận số liệu kế tiếp sẽ tạo cảnh báo mới (vì không còn cảnh báo hoạt động cùng loại). |
+
+ 
+
+### FR-ALR-10. Ghi nhật ký thao tác trên cảnh báo
+
+|  |  |
+| --- | --- |
+| **Xử lý** | Mỗi lần xác nhận hoặc đóng cảnh báo thành công, hệ thống tự ghi một bản ghi vào nhật ký hoạt động (module 07). |
+| **Nội dung** | action là UPDATE\_ALERT\_ACKNOWLEDGE hoặc UPDATE\_ALERT\_RESOLVE; entity\_type là ALERT; entity\_id là id cảnh báo; kèm người thực hiện. |
+
+ 
+
+# 4. Mô hình dữ liệu
+
+Bảng alerts (PostgreSQL). Khi gọi API, tên trường viết theo dạng camelCase, ví dụ alert\_type là alertType.
+
+|  |  |  |
+| --- | --- | --- |
+| **Cột** | **Kiểu và ràng buộc** | **Ý nghĩa** |
+| id | SERIAL, khóa chính | Mã cảnh báo. |
+| server\_id | INT, bắt buộc, khóa ngoại servers(id) | Máy chủ phát sinh cảnh báo. |
+| alert\_type | VARCHAR(50), bắt buộc | Loại cảnh báo: HIGH\_CPU, HIGH\_RAM, DOCKER\_DOWN. |
+| message | TEXT, bắt buộc | Nội dung mô tả cảnh báo. |
+| severity | VARCHAR(20), mặc định WARNING | Mức nghiêm trọng: WARNING hoặc CRITICAL. |
+| status | VARCHAR(20), mặc định OPEN | Trạng thái: OPEN, ACKNOWLEDGED, RESOLVED. |
+| created\_at | TIMESTAMP, mặc định thời điểm tạo | Thời điểm phát sinh cảnh báo. |
+| acknowledged\_by | INT, khóa ngoại users(id), có thể rỗng | Người xác nhận. |
+| acknowledged\_at | TIMESTAMP, có thể rỗng | Thời điểm xác nhận. |
+
+Chỉ mục idx\_alerts\_server\_status trên (server\_id, status) giúp tìm nhanh cảnh báo đang hoạt động của một máy chủ.
+
+## 4.1. Các loại cảnh báo
+
+|  |  |  |
+| --- | --- | --- |
+| **Loại** | **Điều kiện vi phạm** | **Mức nghiêm trọng** |
+| HIGH\_CPU | cpuUsage \> cpuThreshold của máy chủ | CRITICAL nếu cpuUsage từ 95% trở lên, ngược lại WARNING |
+| HIGH\_RAM | ramUsage \> ramThreshold của máy chủ | CRITICAL nếu ramUsage từ 95% trở lên, ngược lại WARNING |
+| DOCKER\_DOWN | Có container có status khác running | WARNING |
+
+## 4.2. Vòng đời trạng thái
+
+|  |  |  |
+| --- | --- | --- |
+| **Từ trạng thái** | **Sang trạng thái** | **Cách thực hiện** |
+| (mới) | OPEN | Hệ thống tạo khi phát hiện vi phạm và chưa có cảnh báo hoạt động cùng loại. |
+| OPEN | ACKNOWLEDGED | ADMIN hoặc OPERATOR gọi acknowledge. |
+| OPEN hoặc ACKNOWLEDGED | RESOLVED | ADMIN hoặc OPERATOR gọi resolve, hoặc hệ thống tự đóng khi số liệu trở lại bình thường. |
+| RESOLVED | (không đổi) | Trạng thái cuối. Sự cố tái diễn sẽ tạo cảnh báo mới. |
+
+# 5. Phân quyền
+
+Mọi API đều yêu cầu JWT hợp lệ (thiếu hoặc sai token trả về 401). Sai vai trò trả về 403.
+
+|  |  |  |  |
+| --- | --- | --- | --- |
+| **API** | **ADMIN** | **OPERATOR** | **TECHNICIAN** |
+| GET /alerts | Có | Có | Có |
+| GET /alerts/:id | Có | Có | Có |
+| PATCH /alerts/:id/acknowledge | Có | Có | Không |
+| PATCH /alerts/:id/resolve | Có | Có | Không |
+
+# 6. Yêu cầu phi chức năng
+
+|  |  |  |
+| --- | --- | --- |
+| **Mã** | **Nhóm** | **Yêu cầu** |
+| NFR-ALR-01 | Bảo mật | Mọi API yêu cầu JWT dạng Bearer và kiểm tra vai trò theo mục 5. |
+| NFR-ALR-02 | Độ tin cậy | Việc tạo và đóng cảnh báo diễn ra trong cùng lần xử lý số liệu, không phụ thuộc người dùng thao tác. |
+| NFR-ALR-03 | Hiệu năng | Với mỗi máy chủ, mỗi lần nhận số liệu thực hiện 3 truy vấn kiểm tra cảnh báo hoạt động, được hỗ trợ bởi chỉ mục (server\_id, status). Phù hợp quy mô thử nghiệm; cần theo dõi khi số node và tần suất tăng. |
+| NFR-ALR-04 | Phân trang | Danh sách cảnh báo giới hạn tối đa 200 bản ghi mỗi trang để tránh phản hồi quá lớn. |
+| NFR-ALR-05 | Kiểm toán | Thao tác xác nhận và đóng cảnh báo được ghi vào nhật ký hoạt động (FR-ALR-10), phù hợp yêu cầu ghi nhật ký các hoạt động giám sát và cảnh báo của đề bài. |
+| NFR-ALR-06 | Khả năng mở rộng | Thêm luật cảnh báo mới (ví dụ mạng, đĩa) chỉ cần thêm một phần tử vào danh sách luật trong hàm đánh giá, không đổi cấu trúc dữ liệu. |
+| NFR-ALR-07 | Khả năng sử dụng | Thông báo lỗi nghiệp vụ bằng tiếng Việt. |
+
+# 7. Quy tắc nghiệp vụ
+
+|  |  |
+| --- | --- |
+| **Mã** | **Quy tắc** |
+| BR-ALR-01 | Cảnh báo CPU và RAM chỉ phát sinh khi giá trị lớn hơn hẳn ngưỡng của máy chủ đó. |
+| BR-ALR-02 | Mỗi máy chủ chỉ có tối đa một cảnh báo hoạt động (OPEN hoặc ACKNOWLEDGED) cho mỗi loại cảnh báo. |
+| BR-ALR-03 | Mức CRITICAL áp dụng khi CPU hoặc RAM từ 95% trở lên; các trường hợp còn lại là WARNING. |
+| BR-ALR-04 | Chỉ cảnh báo OPEN mới được xác nhận. |
+| BR-ALR-05 | Cảnh báo RESOLVED không thể xác nhận hoặc đóng lại. |
+| BR-ALR-06 | Cảnh báo tự đóng khi loại vi phạm đó biến mất trong lần nhận số liệu kế tiếp, bất kể đã được xác nhận hay chưa. |
+| BR-ALR-07 | Chỉ ADMIN và OPERATOR được xác nhận và đóng cảnh báo. TECHNICIAN chỉ xem. |
+| BR-ALR-08 | Cảnh báo không bị xóa; lịch sử được giữ lại ở trạng thái RESOLVED. |
+
+# 8. Khoảng trống so với đề bài và đề xuất
+
+Khi đối chiếu mã nguồn hiện tại với đề bài, các điểm sau chưa được đáp ứng hoặc cần bổ sung:
+
+|  |  |  |  |  |
+| --- | --- | --- | --- | --- |
+| **STT** | **Vấn đề** | **Yêu cầu của đề bài** | **Đề xuất** | **Ưu tiên** |
+| 1 | Chưa có cảnh báo mất kết nối. Không có tác vụ nào kiểm tra máy chủ không gửi số liệu. | Máy chủ bị coi là không khả dụng khi quá 90 giây không có telemetry; phát thông báo khi máy chủ hoặc Agent mất kết nối. | Thêm tác vụ định kỳ so sánh thời điểm nhận số liệu cuối với 90 giây, tạo cảnh báo loại SERVER\_OFFLINE và đặt máy chủ OFFLINE. | Cao |
+| 2 | Chưa phát cảnh báo theo thời gian thực. Backend chưa có <http://Socket.IO> . | Truyền số liệu và cảnh báo thời gian thực qua WebSocket (<http://Socket.IO> ). | Phát sự kiện khi cảnh báo được tạo, xác nhận hoặc đóng (phối hợp Người 2). | Cao |
+| 3 | Chưa có luật cho mạng (networkIn, networkOut) dù số liệu đã được gửi. | Phát hiện vượt ngưỡng tài nguyên. | Thêm luật HIGH\_NETWORK với ngưỡng cấu hình được. | Trung bình |
+| 4 | Dễ nhấp nháy: chỉ số dao động quanh ngưỡng sẽ liên tục đóng rồi mở cảnh báo mới. | Hạn chế cảnh báo trùng lặp. | Thêm thời gian giữ hoặc ngưỡng đóng thấp hơn ngưỡng mở (ví dụ mở ở 80%, chỉ đóng khi xuống dưới 75%). | Trung bình |
+| 5 | Không lưu thời điểm đóng và người đóng; không phân biệt tự đóng và đóng thủ công. | Ghi nhận hoạt động giám sát và cảnh báo để truy vết. | Thêm cột resolved\_at, resolved\_by (rỗng nếu tự đóng). | Trung bình |
+| 6 | Mức CRITICAL (95%) và các luật đang cố định trong mã nguồn. | Cảnh báo và ngưỡng cấu hình được. | Đưa mức CRITICAL thành cấu hình theo máy chủ hoặc toàn hệ thống. | Trung bình |
+| 7 | Chưa có liên kết trực tiếp từ cảnh báo sang phiếu bảo trì trong API cảnh báo. | Quản lý sự cố và phiếu bảo trì gắn với cảnh báo. | Trả về ticket liên quan trong chi tiết cảnh báo; cho phép tạo ticket từ cảnh báo. | Trung bình |
+| 8 | Các giá trị status và severity không bị ràng buộc ở cơ sở dữ liệu (không có CHECK). | Toàn vẹn dữ liệu. | Thêm ràng buộc CHECK giống bảng tickets. | Thấp |
+| 9 | Nội dung cảnh báo viết bằng tiếng Anh, trong khi thông báo lỗi và giao diện là tiếng Việt. | Sử dụng thống nhất. | Thống nhất ngôn ngữ hoặc lưu dữ liệu thô để giao diện tự dịch. | Thấp |
+| 10 | Chưa có thông báo ra ngoài hệ thống (email, tin nhắn) cho cảnh báo CRITICAL. | Phát thông báo khi có sự cố. | Tích hợp kênh thông báo cho cảnh báo mức CRITICAL. | Thấp |
+
+# 9. Tiêu chí chấp nhận và kịch bản kiểm thử
+
+|  |  |  |
+| --- | --- | --- |
+| **Mã** | **Kịch bản** | **Kết quả mong đợi** |
+| TC-01 | Gọi GET /alerts khi chưa đăng nhập. | 401. |
+| TC-02 | TECHNICIAN gọi GET /alerts. | 200 với { data, total, page, limit }. |
+| TC-03 | Gửi số liệu cpuUsage 92 cho máy chủ có ngưỡng CPU 80. | Có cảnh báo HIGH\_CPU, trạng thái OPEN, mức WARNING; phản hồi POST /metrics chứa \["HIGH\_CPU"\]. |
+| TC-04 | Gửi số liệu cpuUsage 96. | Cảnh báo HIGH\_CPU mức CRITICAL (khi chưa có cảnh báo hoạt động cùng loại). |
+| TC-05 | Gửi liên tiếp 10 lần số liệu cpuUsage 92. | Chỉ có một cảnh báo HIGH\_CPU hoạt động, không tạo trùng. |
+| TC-06 | Sau TC-03, gửi số liệu cpuUsage 50. | Cảnh báo HIGH\_CPU tự chuyển RESOLVED. |
+| TC-07 | Gửi số liệu có container redis ở trạng thái exited. | Có cảnh báo DOCKER\_DOWN, nội dung nêu tên redis. |
+| TC-08 | Gửi số liệu cpuUsage đúng bằng ngưỡng (80 với ngưỡng 80). | Không tạo cảnh báo. |
+| TC-09 | GET /alerts?status=open&severity=critical&serverId=1. | Chỉ các cảnh báo OPEN, CRITICAL của máy chủ 1; sắp xếp mới nhất trước. |
+| TC-10 | GET /alerts?limit=1000. | Chỉ trả tối đa 200 bản ghi mỗi trang (limit trả về là 200). |
+| TC-11 | GET /alerts?serverId=abc. | 400 "serverId phải là số". |
+| TC-12 | GET /alerts/9999. | 404 "Không tìm thấy cảnh báo". |
+| TC-13 | OPERATOR gọi acknowledge cảnh báo OPEN. | 200; trạng thái ACKNOWLEDGED; có acknowledgedBy và acknowledgedAt. |
+| TC-14 | Gọi acknowledge lần hai trên cảnh báo đó. | 409 "Chỉ xác nhận được cảnh báo đang ở trạng thái OPEN". |
+| TC-15 | TECHNICIAN gọi acknowledge hoặc resolve. | 403. |
+| TC-16 | OPERATOR gọi resolve cảnh báo ACKNOWLEDGED; gọi resolve lần hai. | Lần đầu 200 (RESOLVED); lần hai 409 "Cảnh báo đã được đóng trước đó". |
+| TC-17 | Sau khi đóng thủ công, sự cố vẫn còn và Agent gửi số liệu tiếp. | Tạo cảnh báo mới cùng loại. |
+| TC-18 | Thực hiện acknowledge và resolve. | Có bản ghi nhật ký UPDATE\_ALERT\_ACKNOWLEDGE và UPDATE\_ALERT\_RESOLVE. |
