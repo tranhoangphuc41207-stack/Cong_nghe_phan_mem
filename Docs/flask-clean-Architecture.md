@@ -70,3 +70,32 @@ ar-imms-backend/
 │   ├── app.e2e-spec.ts                    # Kiểm thử hoạt động API theo luồng thực tế
 │   └── jest-e2e.json                      # Cấu hình kiểm thử End-to-End
 │
+```
+## ORM-Object Relational Mapping
+Cơ chế hoạt động:
+
+Ánh xạ lớp thành bảng: Mỗi lớp Entity đại diện cho một bảng trong cơ sở dữ liệu.
+
+Ánh xạ thuộc tính thành cột: Các thuộc tính của lớp Entity tương ứng với các cột dữ liệu trong bảng.
+
+Ánh xạ khóa chính và khóa ngoại: Xác định định danh của từng bản ghi và liên kết dữ liệu giữa các bảng.
+
+Ánh xạ mối quan hệ: Hỗ trợ các kiểu quan hệ One-to-One (một-một), One-to-Many (một-nhiều), Many-to-One (nhiều-một) và Many-to-Many (nhiều-nhiều).
+
+Thao tác dữ liệu: Hỗ trợ thêm, sửa, xóa và truy vấn dữ liệu thông qua Entity và Repository mà không cần viết toàn bộ câu lệnh SQL thủ công.
+
+Áp dụng trong dự án:
+
+Các Entity như User, Server, Alert, History và AuditLog được ánh xạ tương ứng với các bảng dữ liệu trong PostgreSQL. Thông qua TypeORM, các lớp Service có thể thao tác với dữ liệu bằng Repository, giúp kết nối giữa xử lý nghiệp vụ và cơ sở dữ liệu.
+
+Lợi ích:
+
+Giảm số lượng câu lệnh SQL phải viết thủ công.
+
+Giúp mô hình dữ liệu trong mã nguồn thống nhất với cấu trúc cơ sở dữ liệu.
+
+Quản lý các mối quan hệ giữa các thực thể rõ ràng.
+
+Tăng khả năng bảo trì và mở rộng hệ thống.
+
+Hỗ trợ làm việc với nhiều hệ quản trị cơ sở dữ liệu khác nhau thông qua cấu hình phù hợp.
