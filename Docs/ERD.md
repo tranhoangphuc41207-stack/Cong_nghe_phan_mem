@@ -10,8 +10,8 @@ Hệ thống có **7 thực thể**. Mỗi thực thể ứng với một bảng
 | 2 | `servers` | Máy chủ, ngưỡng, phần cứng, bảo hành, mã marker | Đã có | Đã có |
 | 3 | `history` | Lịch sử số liệu giám sát | Đã có | Đã có |
 | 4 | `alerts` | Cảnh báo | Đã có | Đã có |
-| 5 | `tickets` | Phiếu bảo trì | **Chưa có** | **Chưa có** |
-| 6 | `maintenance_logs` | Lịch sử xử lý bảo trì | **Chưa có** | **Chưa có** |
+| 5 | `tickets` | Phiếu bảo trì | **đã có** | **đã có** |
+| 6 | `maintenance_logs` | Lịch sử xử lý bảo trì | **đã có** | **đã có** |
 | 7 | `audit_logs` | Nhật ký hoạt động | Đã có | Đã có |
 
 ## 2. Các giá trị cố định (Enum)
