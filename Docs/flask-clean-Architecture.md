@@ -72,7 +72,7 @@ ar-imms-backend/
 │
 ```
 ## ORM-Object Relational Mapping
-Cơ chế hoạt động:
+   Cơ chế hoạt động:
 
 Ánh xạ lớp thành bảng: Mỗi lớp Entity đại diện cho một bảng trong cơ sở dữ liệu.
 
@@ -80,15 +80,21 @@ Cơ chế hoạt động:
 
 Ánh xạ khóa chính và khóa ngoại: Xác định định danh của từng bản ghi và liên kết dữ liệu giữa các bảng.
 
-Ánh xạ mối quan hệ: Hỗ trợ các kiểu quan hệ One-to-One (một-một), One-to-Many (một-nhiều), Many-to-One (nhiều-một) và Many-to-Many (nhiều-nhiều).
+Ánh xạ mối quan hệ: TypeORM hỗ trợ các kiểu quan hệ One-to-One (một-một), One-to-Many (một-nhiều), Many-to-One (nhiều-một) và Many-to-Many (nhiều-nhiều).
 
-Thao tác dữ liệu: Hỗ trợ thêm, sửa, xóa và truy vấn dữ liệu thông qua Entity và Repository mà không cần viết toàn bộ câu lệnh SQL thủ công.
+Thao tác dữ liệu: Cung cấp Entity và Repository để hỗ trợ thêm, sửa, xóa và truy vấn dữ liệu thông qua mã nguồn TypeScript.
 
-Áp dụng trong dự án:
+  Áp dụng trong dự án:
 
-Các Entity như User, Server, Alert, History và AuditLog được ánh xạ tương ứng với các bảng dữ liệu trong PostgreSQL. Thông qua TypeORM, các lớp Service có thể thao tác với dữ liệu bằng Repository, giúp kết nối giữa xử lý nghiệp vụ và cơ sở dữ liệu.
+Trong dự án AR-IMMS, các Entity như User, Server, Alert, History, Ticket, MaintenanceLog và AuditLog được sử dụng để biểu diễn các thực thể dữ liệu tương ứng trong hệ thống.
 
-Lợi ích:
+Các Entity được tổ chức trong những module tương ứng như users, servers, alerts, metrics và audit-logs.
+
+Thông qua TypeORM, các lớp Service sử dụng Repository để thực hiện những thao tác với dữ liệu trong PostgreSQL. Quá trình này giúp kết nối phần xử lý nghiệp vụ của backend với cơ sở dữ liệu.
+
+Nhóm sử dụng PostgreSQL làm hệ quản trị cơ sở dữ liệu và DBeaver làm công cụ hỗ trợ quản lý, xem cấu trúc bảng, kiểm tra dữ liệu và thực thi câu lệnh SQL.
+
+  Lợi ích:
 
 Giảm số lượng câu lệnh SQL phải viết thủ công.
 
