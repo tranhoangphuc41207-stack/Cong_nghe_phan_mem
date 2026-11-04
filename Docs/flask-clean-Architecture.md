@@ -105,3 +105,19 @@ Quản lý các mối quan hệ giữa các thực thể rõ ràng.
 Tăng khả năng bảo trì và mở rộng hệ thống.
 
 Hỗ trợ làm việc với nhiều hệ quản trị cơ sở dữ liệu khác nhau thông qua cấu hình phù hợp.
+# Gói ORM: Entity và quan hệ cho cả 7 bảng
+
+## Cách cài
+1. Giải nén, copy thư mục `src` vào `ar-imms-backend`, chọn **Replace** khi hỏi ghi đè.
+   - Thay 5 tệp Entity cũ: `users/user.entity.ts`, `servers/server.entity.ts`, `metrics/history.entity.ts`, `alerts/alert.entity.ts`, `audit-logs/audit-log.entity.ts`.
+   - Thêm 4 tệp mới trong `tickets/`: `ticket.entity.ts`, `maintenance-log.entity.ts`, `ticket.enums.ts`, `tickets.module.ts`.
+2. Sửa `src/app.module.ts`: thêm vào `imports`
+   ```ts
+   import { TicketsModule } from './tickets/tickets.module';
+   // ... trong imports:
+       TicketsModule,
+   ```
+3. Chạy lại `npm run start:dev`.
+4. truy cập http://localhost:3000/api
+
+
