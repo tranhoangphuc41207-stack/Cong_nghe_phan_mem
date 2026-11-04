@@ -1,4 +1,4 @@
-# Collector Agent – AR-IMMS (Phần 2, nửa 1: Collector Agent và Telemetry)
+# Collector Agent – AR-IMMS (Collector Agent và Telemetry)
 
 Chương trình chạy trên mỗi Server/Node: thu CPU, RAM, Network, Docker Container và gửi về Backend **mỗi 5 giây**.
 Chỉ dùng Node.js có sẵn (>= 22.18), không cần `npm install`.
