@@ -1,0 +1,24 @@
+# Mini Data Center thử nghiệm: 2 "máy chủ" mẫu + Agent.
+# Chạy: docker compose up --build
+# Agent cần đọc socket Docker để thu số liệu Container.
+services:
+  web-demo:
+    image: nginx:alpine
+    container_name: web-demo
+
+  cache-demo:
+    image: redis:alpine
+    container_name: cache-demo
+
+  agent:
+    build: .
+    container_name: collector-agent
+    environment:
+      BACKEND_URL: http://host.docker.internal:3000/metrics
+      SERVER_CODE: SRV001
+      API_KEY: test-key
+      INTERVAL_MS: "5000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    user: root   # cần quyền đọc docker.sock trong môi trường thử nghiệm
+    restart: unless-stopped
