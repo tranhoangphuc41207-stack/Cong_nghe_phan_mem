@@ -1,5 +1,8 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-
+import {
+  Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn
+} from 'typeorm';
+import { Server } from '../servers/server.entity';
+import type { Relation } from 'typeorm';
 // numeric / bigint của Postgres được trả về dạng string -> đổi sang number
 const toNumber = {
   to: (v?: number | null) => v,
@@ -7,6 +10,7 @@ const toNumber = {
 };
 
 @Entity('history')
+@Index('idx_history_server_time', ['serverId', 'recordedAt'])
 export class History {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: string;
@@ -31,4 +35,9 @@ export class History {
 
   @Column({ name: 'docker_info', type: 'jsonb', nullable: true })
   dockerInfo: unknown[] | null;
+
+  // ---- Quan hệ: nhiều lần đo thuộc về một máy chủ ----
+  @ManyToOne(() => Server, (s) => s.history, { nullable: false, onDelete: 'NO ACTION' })
+  @JoinColumn({ name: 'server_id' })
+  server: Relation<Server>;
 }
