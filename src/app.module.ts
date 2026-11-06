@@ -9,6 +9,7 @@ import { ServersModule } from './servers/servers.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { TicketsModule } from './tickets/tickets.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
     AuditLogsModule,
     AlertsModule,
     MetricsModule,
+    TicketsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
