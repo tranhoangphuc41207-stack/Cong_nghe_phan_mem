@@ -93,6 +93,6 @@ Hoặc chạy "Mini Data Center" thử nghiệm (nginx + redis + Agent) bằng `
 
 - Đã chạy thử với Backend NestJS + PostgreSQL: Agent gửi liên tục mỗi 5 giây, dữ liệu vào bảng `history`, trạng thái server chuyển `ONLINE`.
 - Đã chạy thử trên Windows và đọc được CPU, RAM hợp lý. Linux (đọc `/proc`) là môi trường chính. macOS chưa kiểm tra.
-- Phần Docker Container mới kiểm tra bằng socket giả lập trong bộ test; chưa thử trên máy có Docker thật. Nên chạy `docker compose up --build` trên máy có Docker để xác nhận.
+- Phần Docker Container đã kiểm tra với Docker Desktop (WSL 2) bằng `docker compose up --build` (bản thử nghiệm có Backend giả): Agent đọc được 4 container (`web-demo`, `cache-demo`, `backend`, `collector-agent`) và gửi đúng danh sách trong dữ liệu. Khi Agent chạy trong container, CPU và RAM là của máy ảo Linux do Docker tạo ra, không phải của máy Windows.
 - Chưa có xác thực Agent ngoài mTLS, và chưa quay vòng chứng chỉ.
 - Thư mục `certs/` nằm trong `.gitignore`, không đưa khóa lên GitHub.
