@@ -1,22 +1,36 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { fakeLogin, saveSession } from "@/lib/auth";
+import { apiLogin, fakeLogin, saveSession } from "@/lib/auth";
+import { clearToken } from "@/lib/api";
+import { User } from "@/types";
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
-      const user = fakeLogin(username, password);
+      let user: User;
+      if (username.includes("@")) {
+        // Có dấu @ nghĩa là email: đăng nhập thật qua Backend
+        user = await apiLogin(username, password);
+      } else {
+        // Không có @: dùng tài khoản giả để thử khi chưa có Backend
+        user = fakeLogin(username, password);
+        clearToken();
+      }
       saveSession(user);
       router.push("/dashboard");
     } catch (err) {
       setError((err as Error).message);
+      setLoading(false);
     }
   }
 
@@ -29,7 +43,7 @@ export default function LoginPage() {
         <h1 className="text-xl font-bold text-gray-900">Đăng nhập hệ thống</h1>
         <input
           className="w-full rounded border p-2 text-gray-900"
-          placeholder="Tên đăng nhập"
+          placeholder="Email hoặc tên đăng nhập"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
@@ -40,9 +54,15 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+        <p className="text-xs text-gray-500">
+          Nhập email để đăng nhập bằng Backend, hoặc tên đăng nhập để dùng chế độ thử.
+        </p>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button className="w-full rounded bg-blue-600 p-2 text-white">
-          Đăng nhập
+        <button
+          disabled={loading}
+          className="w-full rounded bg-blue-600 p-2 text-white disabled:opacity-60"
+        >
+          {loading ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
       </form>
     </div>
