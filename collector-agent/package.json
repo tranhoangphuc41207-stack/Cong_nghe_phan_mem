@@ -1,0 +1,13 @@
+{
+  "name": "ar-imms-collector-agent",
+  "version": "0.1.0",
+  "description": "Collector Agent cho AR-IMMS: thu CPU, RAM, Network, Docker Container và gửi telemetry về Backend",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node src/index.ts",
+    "test": "node --test test/agent.test.ts",
+    "certs": "bash scripts/gen-certs.sh"
+  }
+}
