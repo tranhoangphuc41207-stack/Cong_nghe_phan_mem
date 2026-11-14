@@ -25,7 +25,7 @@ npm.cmd start
 Trong đó:
 
 - `SERVER_CODE` là mã server **đã được đăng ký** ở Backend.
-- `API_KEY` là khóa của server đó, do Backend cấp. **Không đưa khóa thật lên GitHub.**
+- `API_KEY` là khóa của server đó, do Backend cấp.
 
 Khi chạy đúng, mỗi 5 giây Agent in một dòng dạng `seq=N cpu=... ram=... đã gửi=N đang đệm=0`.
 
