@@ -6,7 +6,7 @@ Chỉ dùng Node.js có sẵn (>= 22.18), **không cần `npm install`**. Node 2
 ## Chạy nhanh
 
 ```bash
-# 1. Chạy bộ kiểm thử (13 test)
+# 1. Chạy bộ kiểm thử
 npm test
 
 # 2. Chạy Agent, gửi dữ liệu về Backend
@@ -25,7 +25,7 @@ npm.cmd start
 Trong đó:
 
 - `SERVER_CODE` là mã server **đã được đăng ký** ở Backend.
-- `API_KEY` là khóa của server đó, do Backend cấp.
+- `API_KEY` là khóa của server đó, do Backend cấp. **Không đưa khóa thật lên GitHub.**
 
 Khi chạy đúng, mỗi 5 giây Agent in một dòng dạng `seq=N cpu=... ram=... đã gửi=N đang đệm=0`.
 
@@ -84,15 +84,16 @@ Hoặc chạy "Mini Data Center" thử nghiệm (nginx + redis + Agent) bằng `
 
 ## Việc còn mở
 
-- **Backend:** cấp `API_KEY` và địa chỉ truy cập được từ máy chạy Agent; tùy chọn bỏ qua bản trùng `serverCode` + `recordedAt`.
+- **Backend:** tùy chọn bỏ qua bản trùng `serverCode` + `recordedAt`.
 - **Cảnh báo (Alerting):** luật "mất dữ liệu quá 90 giây" cần tác vụ chạy định kỳ ở Backend, so `recorded_at` mới nhất của từng server với giờ hiện tại. Luật network cần thêm ngưỡng.
 - **Dữ liệu:** bảng `history` chưa lưu thông tin Docker; bảng `alerts` chưa có cột thời gian đóng cảnh báo.
 - **Thời gian thực:** Socket.IO chưa có trong tài liệu API, cần thống nhất người phụ trách.
 
 ## Đã kiểm thử và giới hạn
 
-- Đã chạy thử với Backend NestJS + PostgreSQL: Agent gửi liên tục mỗi 5 giây, dữ liệu vào bảng `history`, trạng thái server chuyển `ONLINE`.
-- Đã chạy thử trên Windows và đọc được CPU, RAM hợp lý. Linux (đọc `/proc`) là môi trường chính. macOS chưa kiểm tra.
-- Phần Docker Container đã kiểm tra với Docker Desktop (WSL 2) bằng `docker compose up --build` (bản thử nghiệm có Backend giả): Agent đọc được 4 container (`web-demo`, `cache-demo`, `backend`, `collector-agent`) và gửi đúng danh sách trong dữ liệu. Khi Agent chạy trong container, CPU và RAM là của máy ảo Linux do Docker tạo ra, không phải của máy Windows.
+- **Backend thật (NestJS + PostgreSQL):** Agent chạy trên Windows, đọc CPU và RAM hợp lý, gửi liên tục mỗi 5 giây; dữ liệu vào bảng `history`. Khi sai API key (401), Agent đệm dữ liệu và ghi log nêu nguyên nhân.
+- **mTLS** (kiểm tra với Backend giả, không nằm trong repo): Agent có chứng chỉ client gửi được liên tục; bỏ chứng chỉ thì bị từ chối và dữ liệu được đệm lại. Backend thật chưa bật mTLS.
+- **Docker Container:** kiểm tra với Docker Desktop (WSL 2) bằng bản `docker compose` có Backend giả: Agent đọc được 4 container và gửi đúng danh sách trong dữ liệu. Bản compose trong repo (không kèm Backend giả, gọi Backend thật qua `host.docker.internal`) chưa chạy thử. Khi Agent chạy trong container, CPU và RAM là của máy ảo Linux do Docker tạo ra, không phải của máy Windows.
+- Linux (đọc `/proc`) là môi trường chính. macOS chưa kiểm tra.
 - Chưa có xác thực Agent ngoài mTLS, và chưa quay vòng chứng chỉ.
-- Thư mục `certs/` nằm trong `.gitignore`, không đưa khóa lên GitHub.
+- Thư mục `certs/` nằm trong `.gitignore`.
