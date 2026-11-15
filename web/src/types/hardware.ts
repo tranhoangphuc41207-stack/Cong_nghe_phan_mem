@@ -28,6 +28,13 @@ export interface Hardware {
   status: HardwareStatus;
   location?: string; // vị trí, chỉ có khi lấy từ Backend
   specs?: string; // cấu hình tóm tắt, chỉ có khi lấy từ Backend
+  // KAN-62: thông số chi tiết và bảo hành, nhập ở form "Sửa thông tin" (mục 3.2.13.2)
+  cpu?: string;
+  ram?: string;
+  storage?: string; // ổ đĩa
+  nic?: string; // card mạng
+  supplier?: string; // nhà cung cấp
+  warrantyStart?: string; // ngày bắt đầu bảo hành, vd "2024-03-15"
 }
 
 export interface MaintenanceRecord {

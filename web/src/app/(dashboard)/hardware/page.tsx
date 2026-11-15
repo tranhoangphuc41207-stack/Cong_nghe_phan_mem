@@ -85,6 +85,21 @@ function todayString() {
 
 type Source = "loading" | "api" | "mock";
 
+// Dữ liệu trong form "Sửa thông tin" (mục 3.2.13.2)
+type EditForm = {
+  cpu: string;
+  ram: string;
+  storage: string;
+  nic: string;
+  serialNumber: string;
+  supplier: string;
+  purchaseDate: string;
+  warrantyStart: string;
+  warrantyEnd: string;
+};
+
+const EDIT_INPUT = "w-full rounded border border-gray-500/30 bg-transparent p-2";
+
 const WARRANTY_FILTERS: (WarrantyState | "ALL")[] = ["ALL", "VALID", "EXPIRING", "EXPIRED", "NONE"];
 
 export default function HardwarePage() {
@@ -104,6 +119,12 @@ export default function HardwarePage() {
   const [mTech, setMTech] = useState("");
   const [mDesc, setMDesc] = useState("");
   const [error, setError] = useState("");
+
+  // Form sửa thông số phần cứng và bảo hành
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<EditForm | null>(null);
+  const [editError, setEditError] = useState("");
+  const [editDone, setEditDone] = useState("");
 
   // Lấy danh sách máy chủ từ Backend. Nếu lỗi thì dùng dữ liệu giả để trang vẫn hiển thị.
   async function load() {
@@ -147,6 +168,83 @@ export default function HardwarePage() {
   function handleOpen(h: Hardware) {
     setOpenId(openId === h.id ? null : h.id);
     setError("");
+    setEditId(null);
+    setForm(null);
+    setEditError("");
+    setEditDone("");
+  }
+
+  // Bấm "Sửa thông tin": điền sẵn dữ liệu hiện tại vào form
+  function handleStartEdit(h: Hardware) {
+    setEditId(h.id);
+    setForm({
+      cpu: h.cpu ?? "",
+      ram: h.ram ?? "",
+      storage: h.storage ?? "",
+      nic: h.nic ?? "",
+      serialNumber: h.serialNumber,
+      supplier: h.supplier ?? "",
+      purchaseDate: h.purchaseDate,
+      warrantyStart: h.warrantyStart ?? "",
+      warrantyEnd: h.warrantyEnd,
+    });
+    setEditError("");
+    setEditDone("");
+  }
+
+  function handleCancelEdit() {
+    setEditId(null);
+    setForm(null);
+    setEditError("");
+  }
+
+  function setField(key: keyof EditForm, value: string) {
+    setForm((f) => (f ? { ...f, [key]: value } : f));
+  }
+
+  // Lưu thông tin sau khi kiểm tra hợp lệ (BR-04: serial là duy nhất, BR-17: ngày bảo hành hợp lệ).
+  // Backend chưa có API cập nhật nên dữ liệu chỉ lưu tạm trên trình duyệt (như lịch sử bảo trì).
+  function handleSaveEdit(id: string, e: React.FormEvent) {
+    e.preventDefault();
+    if (!form) return;
+    const serial = form.serialNumber.trim();
+    if (!serial) {
+      setEditError("Vui lòng nhập số serial");
+      return;
+    }
+    const duplicated = hardware.some(
+      (x) => x.id !== id && x.serialNumber.trim().toLowerCase() === serial.toLowerCase()
+    );
+    if (duplicated) {
+      setEditError("Số serial đã tồn tại, vui lòng nhập số khác");
+      return;
+    }
+    if (form.warrantyStart && form.warrantyEnd && form.warrantyEnd < form.warrantyStart) {
+      setEditError("Ngày hết hạn bảo hành không được trước ngày bắt đầu");
+      return;
+    }
+    setHardware((list) =>
+      list.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              cpu: form.cpu.trim(),
+              ram: form.ram.trim(),
+              storage: form.storage.trim(),
+              nic: form.nic.trim(),
+              serialNumber: serial,
+              supplier: form.supplier.trim(),
+              purchaseDate: form.purchaseDate,
+              warrantyStart: form.warrantyStart,
+              warrantyEnd: form.warrantyEnd,
+            }
+          : x
+      )
+    );
+    setEditId(null);
+    setForm(null);
+    setEditError("");
+    setEditDone(`Đã cập nhật thông tin ${id}`);
   }
 
   function handleAddRecord(hardwareId: string, e: React.FormEvent) {
@@ -313,7 +411,83 @@ export default function HardwarePage() {
                           <p><b>Ngày mua:</b> {h.purchaseDate || "—"}</p>
                           {h.location && <p><b>Vị trí:</b> {h.location}</p>}
                           {h.specs && <p className="md:col-span-2"><b>Cấu hình:</b> {h.specs}</p>}
+                          {h.supplier && <p><b>Nhà cung cấp:</b> {h.supplier}</p>}
+                          {h.cpu && <p><b>CPU:</b> {h.cpu}</p>}
+                          {h.ram && <p><b>RAM:</b> {h.ram}</p>}
+                          {h.storage && <p><b>Ổ đĩa:</b> {h.storage}</p>}
+                          {h.nic && <p><b>Card mạng:</b> {h.nic}</p>}
+                          {h.warrantyStart && <p><b>Bảo hành từ:</b> {h.warrantyStart}</p>}
                         </div>
+
+                        {/* 3.2.13.2 Cập nhật thông số phần cứng và bảo hành */}
+                        {editId === h.id && form ? (
+                          <form
+                            onSubmit={(e) => handleSaveEdit(h.id, e)}
+                            className="space-y-2 rounded border border-gray-500/30 p-3"
+                          >
+                            <h3 className="font-bold">Sửa thông số phần cứng và bảo hành</h3>
+                            <div className="grid gap-2 md:grid-cols-3">
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">CPU</span>
+                                <input className={EDIT_INPUT} placeholder="Vd: 2x Xeon Silver 4314" value={form.cpu} onChange={(e) => setField("cpu", e.target.value)} />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">RAM</span>
+                                <input className={EDIT_INPUT} placeholder="Vd: 128GB DDR4" value={form.ram} onChange={(e) => setField("ram", e.target.value)} />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">Ổ đĩa</span>
+                                <input className={EDIT_INPUT} placeholder="Vd: 2x 1.9TB SSD" value={form.storage} onChange={(e) => setField("storage", e.target.value)} />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">Card mạng</span>
+                                <input className={EDIT_INPUT} placeholder="Vd: Intel X710 10G" value={form.nic} onChange={(e) => setField("nic", e.target.value)} />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">Số serial</span>
+                                <input className={EDIT_INPUT} value={form.serialNumber} onChange={(e) => setField("serialNumber", e.target.value)} />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">Nhà cung cấp</span>
+                                <input className={EDIT_INPUT} placeholder="Vd: Công ty ABC" value={form.supplier} onChange={(e) => setField("supplier", e.target.value)} />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">Ngày mua</span>
+                                <input type="date" className={EDIT_INPUT} value={form.purchaseDate} onChange={(e) => setField("purchaseDate", e.target.value)} />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">Ngày bắt đầu bảo hành</span>
+                                <input type="date" className={EDIT_INPUT} value={form.warrantyStart} onChange={(e) => setField("warrantyStart", e.target.value)} />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs opacity-70">Ngày hết hạn bảo hành</span>
+                                <input type="date" className={EDIT_INPUT} value={form.warrantyEnd} onChange={(e) => setField("warrantyEnd", e.target.value)} />
+                              </label>
+                            </div>
+                            {editError && <p className="text-red-600">{editError}</p>}
+                            <div className="flex gap-2">
+                              <button className="rounded bg-blue-600 px-4 py-2 text-white">Lưu thay đổi</button>
+                              <button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                className="rounded border border-gray-500/30 px-4 py-2"
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(h)}
+                              className="rounded border border-gray-500/30 px-4 py-2"
+                            >
+                              Sửa thông tin
+                            </button>
+                            {editDone && <p className="text-green-600">{editDone}</p>}
+                          </div>
+                        )}
 
                         <div>
                           <h3 className="mb-2 font-bold">Lịch sử bảo trì ({history.length})</h3>
