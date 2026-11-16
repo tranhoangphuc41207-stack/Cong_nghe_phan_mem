@@ -1,3 +1,4 @@
+
 import {
   Check, Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -6,10 +7,18 @@ import { History } from '../metrics/history.entity';
 import { Alert } from '../alerts/alert.entity';
 import { Ticket } from '../tickets/ticket.entity';
 import type { Relation } from 'typeorm';
+
 // numeric trong Postgres được trả về dạng string, nên chuyển sang number
 const numeric = {
   to: (v?: number) => v,
   from: (v?: string | null) => (v === null || v === undefined ? v : parseFloat(v)),
+};
+
+// bigint trong Postgres được trả về dạng string, nên chuyển sang number
+const bigint = {
+  to: (v?: number | null) => v,
+  from: (v?: string | null) =>
+    v === null || v === undefined ? v : Number(v),
 };
 
 @Entity('servers')
@@ -41,6 +50,23 @@ export class Server {
 
   @Column({ name: 'ram_threshold', type: 'numeric', precision: 5, scale: 2, default: 80, transformer: numeric })
   ramThreshold: number;
+
+  // ---- Ngưỡng cảnh báo Network (đơn vị B/s) ----
+  @Column({
+    name: 'network_warning_threshold',
+    type: 'bigint',
+    nullable: true,
+    transformer: bigint,
+  })
+  networkWarningThreshold: number | null;
+
+  @Column({
+    name: 'network_critical_threshold',
+    type: 'bigint',
+    nullable: true,
+    transformer: bigint,
+  })
+  networkCriticalThreshold: number | null;
 
   // ---- Thông tin phần cứng và bảo hành ----
   @Column({ type: 'varchar', length: 100, nullable: true })

@@ -1,4 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import { Server } from './server.entity';
@@ -9,7 +15,10 @@ import { ServerStatus } from './server-status.enum';
 
 @Injectable()
 export class ServersService {
-  constructor(@InjectRepository(Server) private repo: Repository<Server>) { }
+  constructor(
+    @InjectRepository(Server)
+    private repo: Repository<Server>,
+  ) {}
 
   findAll() {
     return this.repo.find({ order: { id: 'ASC' } });
@@ -17,7 +26,11 @@ export class ServersService {
 
   async findOne(id: number) {
     const server = await this.repo.findOne({ where: { id } });
-    if (!server) throw new NotFoundException('Không tìm thấy máy chủ');
+
+    if (!server) {
+      throw new NotFoundException('Không tìm thấy máy chủ');
+    }
+
     return server;
   }
 
@@ -26,7 +39,10 @@ export class ServersService {
     return this.repo
       .createQueryBuilder('s')
       .where('s.warranty_expiry IS NOT NULL')
-      .andWhere('s.warranty_expiry <= CURRENT_DATE + CAST(:days AS INTEGER)', { days })
+      .andWhere(
+        's.warranty_expiry <= CURRENT_DATE + CAST(:days AS INTEGER)',
+        { days },
+      )
       .orderBy('s.warranty_expiry', 'ASC')
       .getMany();
   }
@@ -41,11 +57,14 @@ export class ServersService {
 
   async update(id: number, dto: UpdateServerDto) {
     const server = await this.findOne(id);
-    // bỏ các trường undefined để không đè lên dữ liệu cũ
+
+    // Bỏ các trường undefined để không đè lên dữ liệu cũ
     const changes = Object.fromEntries(
       Object.entries(dto).filter(([, v]) => v !== undefined),
     );
+
     Object.assign(server, changes);
+
     try {
       return await this.repo.save(server);
     } catch (e) {
@@ -53,40 +72,94 @@ export class ServersService {
     }
   }
 
+  // Cập nhật ngưỡng cảnh báo CPU, RAM và Network
   async updateThresholds(id: number, dto: UpdateThresholdsDto) {
     const server = await this.findOne(id);
-    server.cpuThreshold = dto.cpuThreshold;
-    server.ramThreshold = dto.ramThreshold;
+
+    // Lấy ngưỡng Network mới hoặc giữ lại ngưỡng hiện tại
+    const warningThreshold =
+      dto.networkWarningThreshold !== undefined
+        ? dto.networkWarningThreshold
+        : server.networkWarningThreshold;
+
+    const criticalThreshold =
+      dto.networkCriticalThreshold !== undefined
+        ? dto.networkCriticalThreshold
+        : server.networkCriticalThreshold;
+
+    // Kiểm tra ngưỡng Warning phải nhỏ hơn Critical
+    if (
+      warningThreshold !== null &&
+      warningThreshold !== undefined &&
+      criticalThreshold !== null &&
+      criticalThreshold !== undefined &&
+      warningThreshold >= criticalThreshold
+    ) {
+      throw new BadRequestException(
+        'Ngưỡng Network Warning phải nhỏ hơn ngưỡng Critical',
+      );
+    }
+
+    // Cập nhật CPU và RAM nếu có dữ liệu
+    if (dto.cpuThreshold !== undefined) {
+      server.cpuThreshold = dto.cpuThreshold;
+    }
+
+    if (dto.ramThreshold !== undefined) {
+      server.ramThreshold = dto.ramThreshold;
+    }
+
+    // Cập nhật Network nếu có dữ liệu
+    if (dto.networkWarningThreshold !== undefined) {
+      server.networkWarningThreshold = dto.networkWarningThreshold;
+    }
+
+    if (dto.networkCriticalThreshold !== undefined) {
+      server.networkCriticalThreshold = dto.networkCriticalThreshold;
+    }
+
     return this.repo.save(server);
   }
 
   async updateStatus(id: number, status: ServerStatus) {
     const server = await this.findOne(id);
     server.status = status;
+
     return this.repo.save(server);
   }
 
   async remove(id: number) {
     const server = await this.findOne(id);
+
     try {
       await this.repo.remove(server);
       return { deleted: true, id };
     } catch (e) {
-      // 23503 = foreign key violation (server đã có history/alerts/tickets)
-      if (e instanceof QueryFailedError && (e as any).driverError?.code === '23503') {
+      // 23503 = foreign key violation
+      if (
+        e instanceof QueryFailedError &&
+        (e as any).driverError?.code === '23503'
+      ) {
         throw new ConflictException(
           'Không thể xóa: máy chủ đã có dữ liệu liên quan (lịch sử, cảnh báo, phiếu bảo trì)',
         );
       }
+
       throw e;
     }
   }
 
   private handleUnique(e: unknown): never {
-    // 23505 = unique violation (server_code hoặc qr_code trùng)
-    if (e instanceof QueryFailedError && (e as any).driverError?.code === '23505') {
-      throw new ConflictException('Mã máy chủ, mã QR hoặc số serial đã tồn tại');
+    // 23505 = unique violation
+    if (
+      e instanceof QueryFailedError &&
+      (e as any).driverError?.code === '23505'
+    ) {
+      throw new ConflictException(
+        'Mã máy chủ, mã QR hoặc số serial đã tồn tại',
+      );
     }
+
     throw e;
   }
 }
