@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, In, Repository } from 'typeorm';
 import { Alert } from './alert.entity';
+import { AlertsGateway } from './alerts.gateway';
 import { Server } from '../servers/server.entity';
 
 export interface DockerContainer {
@@ -34,6 +35,7 @@ export class AlertsService {
   constructor(
     @InjectRepository(Alert)
     private repo: Repository<Alert>,
+    private readonly alertsGateway: AlertsGateway,
   ) {}
 
   /**
@@ -137,7 +139,7 @@ export class AlertsService {
 
         if (!active) {
           // Chưa có cảnh báo hoạt động thì tạo cảnh báo mới
-          await this.repo.save(
+          const newAlert = await this.repo.save(
             this.repo.create({
               serverId: server.id,
               alertType: c.type,
@@ -146,6 +148,9 @@ export class AlertsService {
               status: 'OPEN',
             }),
           );
+
+          // Phát sự kiện cảnh báo mới qua Socket.IO
+          this.alertsGateway.emitNew(newAlert);
         } else if (
           active.severity !== c.severity ||
           active.message !== c.message
@@ -154,12 +159,19 @@ export class AlertsService {
           active.severity = c.severity;
           active.message = c.message;
 
-          await this.repo.save(active);
+          const updatedAlert = await this.repo.save(active);
+
+          // Phát sự kiện cảnh báo được cập nhật
+          this.alertsGateway.emitUpdated(updatedAlert);
         }
       } else if (active) {
         // Chỉ số trở lại bình thường thì giải quyết cảnh báo
         active.status = 'RESOLVED';
-        await this.repo.save(active);
+
+        const resolvedAlert = await this.repo.save(active);
+
+        // Phát sự kiện cảnh báo đã được giải quyết
+        this.alertsGateway.emitResolved(resolvedAlert);
       }
     }
 
@@ -194,7 +206,10 @@ export class AlertsService {
       status: 'OPEN',
     });
 
-    await this.repo.save(alert);
+    const savedAlert = await this.repo.save(alert);
+
+    // Phát sự kiện khi có cảnh báo NO_TELEMETRY mới
+    this.alertsGateway.emitNew(savedAlert);
   }
 
   /**
@@ -212,7 +227,11 @@ export class AlertsService {
 
     for (const alert of activeAlerts) {
       alert.status = 'RESOLVED';
-      await this.repo.save(alert);
+
+      const resolvedAlert = await this.repo.save(alert);
+
+      // Phát sự kiện khi Server gửi telemetry trở lại
+      this.alertsGateway.emitResolved(resolvedAlert);
     }
   }
 
@@ -286,7 +305,12 @@ export class AlertsService {
     alert.acknowledgedBy = userId;
     alert.acknowledgedAt = new Date();
 
-    return this.repo.save(alert);
+    const updatedAlert = await this.repo.save(alert);
+
+    // Phát sự kiện khi cảnh báo được xác nhận
+    this.alertsGateway.emitUpdated(updatedAlert);
+
+    return updatedAlert;
   }
 
   /**
@@ -303,6 +327,11 @@ export class AlertsService {
 
     alert.status = 'RESOLVED';
 
-    return this.repo.save(alert);
+    const resolvedAlert = await this.repo.save(alert);
+
+    // Phát sự kiện khi cảnh báo được giải quyết
+    this.alertsGateway.emitResolved(resolvedAlert);
+
+    return resolvedAlert;
   }
 }
