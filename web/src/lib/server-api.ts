@@ -80,3 +80,44 @@ export function serverToHardware(s: ApiServer): Hardware {
     specs: specs || undefined,
   };
 }
+
+// ===== Thêm máy chủ mới (POST /servers, chỉ ADMIN) =====
+
+export interface CreateServerInput {
+  serverCode: string; // duy nhất, tối đa 50 ký tự
+  name: string; // tối đa 100 ký tự
+  description?: string;
+  location?: string;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  cpuModel?: string;
+  ramGb?: number;
+  storageGb?: number;
+  purchaseDate?: string; // YYYY-MM-DD
+  warrantyExpiry?: string; // YYYY-MM-DD
+}
+
+export function createServer(body: CreateServerInput) {
+  return apiFetch<ApiServer>("/servers", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+// Tự sinh mã và tên cho máy chủ kế tiếp dựa trên danh sách hiện có:
+// SRV-001, SRV-002, ... (lấy số lớn nhất đang có rồi cộng 1, bỏ qua mã đã bị trùng)
+export function nextServerDefaults(list: ApiServer[]) {
+  const used = new Set(list.map((s) => s.serverCode.toLowerCase()));
+  let n =
+    list.reduce((max, s) => {
+      const m = /^SRV-(\d+)$/i.exec(s.serverCode);
+      return m ? Math.max(max, Number(m[1])) : max;
+    }, 0) + 1;
+  let code = "";
+  do {
+    code = `SRV-${String(n).padStart(3, "0")}`;
+    n++;
+  } while (used.has(code.toLowerCase()));
+  return { serverCode: code, name: code.toLowerCase() };
+}
