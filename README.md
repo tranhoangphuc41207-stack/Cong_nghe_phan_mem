@@ -8,71 +8,150 @@ ar-imms-backend/
 ├── src/
 │   │
 │   ├── alerts/
-│   │   ├── alert.entity.ts              # Định nghĩa cấu trúc bảng alerts trong PostgreSQL
-│   │   ├── alerts.controller.ts         # Tiếp nhận API quản lý cảnh báo
-│   │   ├── alerts.module.ts             # Đăng ký và liên kết các thành phần của module cảnh báo
-│   │   └── alerts.service.ts             # Xử lý nghiệp vụ tạo, xem và cập nhật cảnh báo
+│   │   ├── alert.entity.ts                  # Định nghĩa cấu trúc bảng alerts trong PostgreSQL
+│   │   ├── alerts.controller.ts             # Tiếp nhận API quản lý cảnh báo
+│   │   ├── alerts.gateway.ts                # Đẩy cảnh báo realtime qua Socket.IO, xác thực JWT khi kết nối
+│   │   ├── alerts.module.ts                 # Đăng ký và liên kết các thành phần của module cảnh báo
+│   │   └── alerts.service.ts                # Xử lý nghiệp vụ tạo, xem và cập nhật cảnh báo
 │   │
 │   ├── audit-logs/
-│   │   ├── audit-log.entity.ts          # Định nghĩa cấu trúc bảng audit_logs trong PostgreSQL
-│   │   ├── audit-logs.controller.ts     # Tiếp nhận API xem nhật ký hoạt động
-│   │   ├── audit-logs.module.ts         # Đăng ký module nhật ký hoạt động
-│   │   ├── audit-logs.service.ts        # Xử lý nghiệp vụ truy xuất nhật ký
-│   │   └── audit.interceptor.ts         # Ghi nhận hoạt động của người dùng vào nhật ký
+│   │   ├── audit-log.entity.ts              # Định nghĩa cấu trúc bảng audit_logs trong PostgreSQL
+│   │   ├── audit-logs.controller.ts         # Tiếp nhận API xem nhật ký hoạt động
+│   │   ├── audit-logs.module.ts             # Đăng ký module nhật ký hoạt động
+│   │   ├── audit-logs.service.ts            # Xử lý nghiệp vụ truy xuất nhật ký
+│   │   └── audit.interceptor.ts             # Ghi nhận hoạt động của người dùng vào nhật ký
 │   │
 │   ├── auth/
 │   │   ├── dto/
-│   │   │   └── login.dto.ts             # Kiểm tra dữ liệu gửi lên khi đăng nhập
-│   │   ├── auth.controller.ts           # Tiếp nhận API đăng nhập và xác thực
-│   │   ├── auth.module.ts               # Đăng ký module xác thực
-│   │   ├── auth.service.ts               # Xử lý đăng nhập, kiểm tra tài khoản và tạo JWT
-│   │   ├── jwt-auth.guard.ts             # Bảo vệ API bằng token JWT
-│   │   └── jwt.strategy.ts               # Kiểm tra và giải mã JWT
+│   │   │   └── login.dto.ts                 # Kiểm tra dữ liệu gửi lên khi đăng nhập
+│   │   ├── auth.controller.ts               # Tiếp nhận API đăng nhập và xác thực
+│   │   ├── auth.module.ts                   # Đăng ký module xác thực
+│   │   ├── auth.service.ts                  # Xử lý đăng nhập, kiểm tra tài khoản và tạo JWT
+│   │   ├── jwt-auth.guard.ts                # Bảo vệ API bằng token JWT
+│   │   └── jwt.strategy.ts                  # Kiểm tra và giải mã JWT
 │   │
 │   ├── common/
-│   │   ├── role.enum.ts                  # Khai báo các vai trò ADMIN, OPERATOR, TECHNICIAN
-│   │   ├── roles.decorator.ts            # Khai báo quyền truy cập cho từng API
-│   │   └── roles.guard.ts                # Kiểm tra quyền truy cập theo vai trò
+│   │   ├── role.enum.ts                     # Khai báo các vai trò ADMIN, OPERATOR, TECHNICIAN
+│   │   ├── roles.decorator.ts               # Khai báo quyền truy cập cho từng API
+│   │   └── roles.guard.ts                   # Kiểm tra quyền truy cập theo vai trò
 │   │
 │   ├── metrics/
 │   │   ├── dto/
-│   │   │   └── create-metric.dto.ts     # Kiểm tra dữ liệu thông số máy chủ gửi lên
-│   │   ├── api-key.guard.ts              # Xác thực API Key khi gửi thông số
-│   │   ├── history.entity.ts             # Định nghĩa cấu trúc bảng history trong PostgreSQL
-│   │   ├── metrics.controller.ts         # Tiếp nhận API gửi và xem thông số máy chủ
-│   │   ├── metrics.module.ts             # Đăng ký module quản lý thông số
-│   │   └── metrics.service.ts             # Xử lý lưu trữ và truy xuất thông số máy chủ
+│   │   │   └── create-metric.dto.ts         # Kiểm tra dữ liệu thông số máy chủ gửi lên
+│   │   ├── api-key.guard.ts                 # Xác thực API Key khi Agent gửi thông số
+│   │   ├── history.entity.ts                # Định nghĩa cấu trúc bảng history trong PostgreSQL
+│   │   ├── metrics.controller.ts            # Tiếp nhận API gửi và xem thông số máy chủ
+│   │   ├── metrics.module.ts                # Đăng ký module quản lý thông số
+│   │   └── metrics.service.ts               # Xử lý lưu trữ và truy xuất thông số máy chủ
 │   │
 │   ├── servers/
 │   │   ├── dto/
-│   │   │   ├── create-server.dto.ts      # Kiểm tra dữ liệu khi tạo máy chủ
-│   │   │   ├── update-server.dto.ts      # Kiểm tra dữ liệu khi cập nhật máy chủ
-│   │   │   ├── update-status.dto.ts      # Kiểm tra dữ liệu khi cập nhật trạng thái
-│   │   │   └── update-thresholds.dto.ts  # Kiểm tra ngưỡng CPU và RAM
-│   │   ├── server-status.enum.ts         # Khai báo các trạng thái máy chủ
-│   │   ├── server.entity.ts              # Định nghĩa cấu trúc bảng servers trong PostgreSQL
-│   │   ├── servers.controller.ts         # Tiếp nhận API quản lý máy chủ
-│   │   ├── servers.module.ts             # Đăng ký module quản lý máy chủ
-│   │   └── servers.service.ts             # Xử lý nghiệp vụ thêm, sửa, xóa và truy vấn máy chủ
+│   │   │   ├── create-server.dto.ts         # Kiểm tra dữ liệu khi tạo máy chủ
+│   │   │   ├── update-server.dto.ts         # Kiểm tra dữ liệu khi cập nhật máy chủ
+│   │   │   ├── update-status.dto.ts         # Kiểm tra dữ liệu khi cập nhật trạng thái
+│   │   │   └── update-thresholds.dto.ts     # Kiểm tra ngưỡng CPU và RAM
+│   │   ├── server-status.enum.ts            # Khai báo các trạng thái máy chủ
+│   │   ├── server.entity.ts                 # Định nghĩa cấu trúc bảng servers trong PostgreSQL
+│   │   ├── servers.controller.ts            # Tiếp nhận API quản lý máy chủ
+│   │   ├── servers.module.ts                # Đăng ký module quản lý máy chủ
+│   │   └── servers.service.ts               # Xử lý nghiệp vụ thêm, sửa, xóa và truy vấn máy chủ
+│   │
+│   ├── tickets/
+│   │   ├── maintenance-log.entity.ts        # Định nghĩa cấu trúc bảng maintenance_logs trong PostgreSQL
+│   │   ├── ticket.entity.ts                 # Định nghĩa cấu trúc bảng tickets trong PostgreSQL
+│   │   ├── ticket.enums.ts                  # Khai báo trạng thái và mức ưu tiên của phiếu bảo trì
+│   │   └── tickets.module.ts                # Đăng ký Entity với ORM (controller, service sẽ bổ sung sau)
 │   │
 │   ├── users/
 │   │   ├── dto/
-│   │   │   └── update-user-role.dto.ts  # Kiểm tra dữ liệu khi thay đổi vai trò người dùng
-│   │   ├── user.entity.ts                # Định nghĩa cấu trúc bảng users trong PostgreSQL
-│   │   ├── users.controller.ts           # Tiếp nhận API quản lý người dùng
-│   │   ├── users.module.ts               # Đăng ký module quản lý người dùng
-│   │   └── users.service.ts               # Xử lý nghiệp vụ quản lý tài khoản
+│   │   │   ├── create-user.dto.ts           # Kiểm tra dữ liệu khi tạo tài khoản
+│   │   │   └── update-user-role.dto.ts      # Kiểm tra dữ liệu khi thay đổi vai trò người dùng
+│   │   ├── user.entity.ts                   # Định nghĩa cấu trúc bảng users trong PostgreSQL
+│   │   ├── users.controller.ts              # Tiếp nhận API quản lý người dùng
+│   │   ├── users.module.ts                  # Đăng ký module quản lý người dùng
+│   │   └── users.service.ts                 # Xử lý nghiệp vụ quản lý tài khoản
 │   │
-│   ├── app.controller.ts                 # Tiếp nhận các API chung của ứng dụng
-│   ├── app.controller.spec.ts             # Kiểm thử AppController
-│   ├── app.module.ts                      # Module gốc, cấu hình PostgreSQL và liên kết các module
-│   ├── app.service.ts                      # Xử lý nghiệp vụ chung của ứng dụng
-│   └── main.ts                            # Điểm khởi chạy, cấu hình CORS, validation và Swagger
+│   ├── app.controller.ts                    # Tiếp nhận các API chung của ứng dụng
+│   ├── app.controller.spec.ts               # Kiểm thử AppController
+│   ├── app.module.ts                        # Module gốc, cấu hình PostgreSQL và liên kết các module
+│   ├── app.service.ts                       # Xử lý nghiệp vụ chung của ứng dụng
+│   └── main.ts                              # Điểm khởi chạy, cấu hình CORS, validation và Swagger
 │
 ├── test/
-│   ├── app.e2e-spec.ts                    # Kiểm thử hoạt động API theo luồng thực tế
-│   └── jest-e2e.json                      # Cấu hình kiểm thử End-to-End
+│   ├── app.e2e-spec.ts                      # Kiểm thử hoạt động API theo luồng thực tế
+│   └── jest-e2e.json                        # Cấu hình kiểm thử End-to-End
 │
+├── collector-agent/
+│   ├── scripts/
+│   │   └── gen-certs.sh                     # Tạo CA và chứng chỉ server/client để thử mTLS
+│   ├── src/
+│   │   ├── collectors/
+│   │   │   ├── docker.ts                    # Thu số liệu Container qua Docker Engine API
+│   │   │   └── system.ts                    # Thu CPU, RAM và lưu lượng mạng của máy chủ
+│   │   ├── buffer.ts                        # Hàng đợi đệm dữ liệu, khi đầy bỏ bản cũ nhất
+│   │   ├── config.ts                        # Đọc cấu hình Agent (địa chỉ Backend, API Key, chứng chỉ)
+│   │   ├── index.ts                         # Điểm khởi chạy, định kỳ thu thập và gửi telemetry
+│   │   ├── payload.ts                       # Chuyển dữ liệu thu được sang định dạng Backend yêu cầu
+│   │   ├── sender.ts                        # Gửi POST /metrics về Backend, hỗ trợ mTLS và gửi bù khi lỗi
+│   │   └── types.ts                         # Khai báo kiểu dữ liệu telemetry gửi về Backend
+│   ├── test/
+│   │   └── agent.test.ts                    # Kiểm thử hoạt động của Agent
+│   ├── docker-compose.yml                   # Chạy thử mô hình Mini Data Center cùng Agent
+│   ├── Dockerfile                           # Đóng gói Agent thành Docker image
+│   └── package.json                         # Khai báo script và phiên bản Node của Agent
+│
+├── web/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── (dashboard)/
+│   │   │   │   ├── alerts/page.tsx          # Trang xem và xử lý cảnh báo
+│   │   │   │   ├── dashboard/page.tsx       # Trang tổng quan hệ thống
+│   │   │   │   ├── hardware/page.tsx        # Trang thông tin phần cứng
+│   │   │   │   ├── infrastructure/page.tsx  # Trang hạ tầng
+│   │   │   │   ├── reports/
+│   │   │   │   │   ├── live-metrics.tsx     # Hiển thị thông số theo thời gian thực
+│   │   │   │   │   └── page.tsx             # Trang báo cáo
+│   │   │   │   ├── servers/
+│   │   │   │   │   ├── [id]/page.tsx        # Trang chi tiết một máy chủ
+│   │   │   │   │   └── page.tsx             # Trang danh sách máy chủ
+│   │   │   │   ├── settings/page.tsx        # Trang cài đặt
+│   │   │   │   ├── tickets/page.tsx         # Trang phiếu bảo trì
+│   │   │   │   ├── users/page.tsx           # Trang quản lý người dùng
+│   │   │   │   └── layout.tsx               # Khung giao diện chung của các trang dashboard
+│   │   │   ├── login/page.tsx               # Trang đăng nhập
+│   │   │   ├── globals.css                  # Giao diện dùng chung
+│   │   │   ├── layout.tsx                   # Khung giao diện gốc của ứng dụng
+│   │   │   └── page.tsx                     # Trang chủ
+│   │   ├── lib/
+│   │   │   ├── api.ts                       # Hàm gọi API tới Backend
+│   │   │   ├── auth.ts                      # Xử lý đăng nhập và lưu token phía giao diện
+│   │   │   ├── server-api.ts                # Hàm gọi API liên quan máy chủ
+│   │   │   └── *-mock.ts                    # Dữ liệu mẫu cho các trang (alerts, dashboard, hardware...)
+│   │   └── types/
+│   │       ├── hardware.ts                  # Kiểu dữ liệu phần cứng
+│   │       ├── index.ts                     # Kiểu dữ liệu chung
+│   │       ├── report.ts                    # Kiểu dữ liệu báo cáo
+│   │       └── ticket.ts                    # Kiểu dữ liệu phiếu bảo trì
+│   ├── next.config.ts                       # Cấu hình Next.js
+│   └── package.json                         # Khai báo thư viện Next.js, React, Socket.IO client
+│
+├── Docs/
+│   ├── 01-overview.md                       # Tổng quan hệ thống
+│   ├── 02-auth-requirements.md              # Yêu cầu xác thực và phân quyền
+│   ├── 03-user-requirements.md              # Yêu cầu quản lý người dùng
+│   ├── 04-server-requirements.md            # Yêu cầu quản lý máy chủ
+│   ├── 05-metrics-requirements.md           # Yêu cầu thu thập và giám sát số liệu
+│   ├── 06-alert-requirements.md             # Yêu cầu cảnh báo
+│   ├── 07-audit-logs-requirements.md        # Yêu cầu nhật ký hoạt động
+│   ├── 08-non-functional-requirements.md    # Yêu cầu phi chức năng
+│   └── ERD.md                               # Sơ đồ thực thể quan hệ của cơ sở dữ liệu
+│
+├── database.sql                             # Script tạo các bảng users, servers, history, alerts, tickets, maintenance_logs, audit_logs
+├── .env                                     # Biến môi trường (JWT_SECRET, API_KEY, thông tin kết nối PostgreSQL, PORT)
+├── nest-cli.json                            # Cấu hình NestJS CLI
+├── package.json                             # Khai báo thư viện và script của Backend
+├── tsconfig.json                            # Cấu hình TypeScript
+└── README.md                                # Mô tả dự án và kiến trúc thư mục
 ```
 ## ORM-Object Relational Mapping
 Cơ chế hoạt động:
