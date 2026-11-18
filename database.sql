@@ -576,3 +576,6 @@ ORDER BY id DESC;
 SELECT *
 FROM tickets
 ORDER BY id DESC;
+ALTER TABLE servers
+  ADD COLUMN IF NOT EXISTS network_warning_threshold BIGINT,
+  ADD COLUMN IF NOT EXISTS network_critical_threshold BIGINT;
