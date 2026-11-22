@@ -1,6 +1,7 @@
 "use client";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { mockHardware, mockMaintenance } from "@/lib/hardware-mock";
+import { fetchServers, serverToHardware } from "@/lib/server-api";
 import {
   Hardware,
   HardwareStatus,
@@ -19,12 +20,18 @@ const TYPE_LABEL: Record<HardwareType, string> = {
 
 const STATUS_LABEL: Record<HardwareStatus, string> = {
   ACTIVE: "Đang hoạt động",
+  WARNING: "Cảnh báo",
+  OFFLINE: "Mất kết nối",
+  UNKNOWN: "Chưa rõ",
   MAINTENANCE: "Đang bảo trì",
   RETIRED: "Ngừng sử dụng",
 };
 
 const STATUS_STYLE: Record<HardwareStatus, string> = {
   ACTIVE: "bg-green-100 text-green-700",
+  WARNING: "bg-orange-100 text-orange-700",
+  OFFLINE: "bg-red-100 text-red-700",
+  UNKNOWN: "bg-gray-200 text-gray-700",
   MAINTENANCE: "bg-yellow-100 text-yellow-700",
   RETIRED: "bg-gray-200 text-gray-700",
 };
@@ -36,25 +43,29 @@ const MAINTENANCE_LABEL: Record<MaintenanceType, string> = {
 };
 
 // Tình trạng bảo hành tính theo số ngày còn lại
-type WarrantyState = "VALID" | "EXPIRING" | "EXPIRED";
+type WarrantyState = "VALID" | "EXPIRING" | "EXPIRED" | "NONE";
 
 const WARRANTY_LABEL: Record<WarrantyState, string> = {
   VALID: "Còn bảo hành",
   EXPIRING: "Sắp hết hạn",
   EXPIRED: "Hết bảo hành",
+  NONE: "Chưa có thông tin",
 };
 
 const WARRANTY_STYLE: Record<WarrantyState, string> = {
   VALID: "bg-green-100 text-green-700",
   EXPIRING: "bg-orange-100 text-orange-700",
   EXPIRED: "bg-red-100 text-red-700",
+  NONE: "bg-gray-200 text-gray-700",
 };
 
 const EXPIRING_DAYS = 90; // còn dưới 90 ngày thì coi là sắp hết hạn
 
-// Số ngày còn lại của bảo hành (âm nghĩa là đã hết hạn)
-function daysLeft(warrantyEnd: string) {
+// Số ngày còn lại của bảo hành (âm nghĩa là đã hết hạn, null nếu chưa có ngày)
+function daysLeft(warrantyEnd: string): number | null {
+  if (!warrantyEnd) return null;
   const end = new Date(warrantyEnd + "T00:00:00").getTime();
+  if (Number.isNaN(end)) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return Math.ceil((end - today.getTime()) / 86400000);
@@ -62,6 +73,7 @@ function daysLeft(warrantyEnd: string) {
 
 function warrantyState(warrantyEnd: string): WarrantyState {
   const d = daysLeft(warrantyEnd);
+  if (d === null) return "NONE";
   if (d < 0) return "EXPIRED";
   if (d <= EXPIRING_DAYS) return "EXPIRING";
   return "VALID";
@@ -71,10 +83,16 @@ function todayString() {
   return new Date().toISOString().slice(0, 10);
 }
 
-const WARRANTY_FILTERS: (WarrantyState | "ALL")[] = ["ALL", "VALID", "EXPIRING", "EXPIRED"];
+type Source = "loading" | "api" | "mock";
+
+const WARRANTY_FILTERS: (WarrantyState | "ALL")[] = ["ALL", "VALID", "EXPIRING", "EXPIRED", "NONE"];
 
 export default function HardwarePage() {
-  const [records, setRecords] = useState<MaintenanceRecord[]>(mockMaintenance);
+  const [hardware, setHardware] = useState<Hardware[]>([]);
+  const [records, setRecords] = useState<MaintenanceRecord[]>([]);
+  const [source, setSource] = useState<Source>("loading");
+  const [notice, setNotice] = useState("");
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<HardwareType | "ALL">("ALL");
   const [warrantyFilter, setWarrantyFilter] = useState<WarrantyState | "ALL">("ALL");
@@ -87,10 +105,34 @@ export default function HardwarePage() {
   const [mDesc, setMDesc] = useState("");
   const [error, setError] = useState("");
 
-  const count = (s: WarrantyState) =>
-    mockHardware.filter((h) => warrantyState(h.warrantyEnd) === s).length;
+  // Lấy danh sách máy chủ từ Backend. Nếu lỗi thì dùng dữ liệu giả để trang vẫn hiển thị.
+  async function load() {
+    try {
+      const list = await fetchServers();
+      setHardware(list.map(serverToHardware));
+      setRecords([]); // Backend chưa có API lịch sử bảo trì
+      setNotice("");
+      setSource("api");
+    } catch (err) {
+      setHardware(mockHardware);
+      setRecords(mockMaintenance);
+      setNotice((err as Error).message);
+      setSource("mock");
+    }
+  }
 
-  const shown = mockHardware.filter((h) => {
+  useEffect(() => {
+    void load();
+  }, []);
+
+  function handleReload() {
+    setSource("loading");
+    void load();
+  }
+
+  const count = (s: WarrantyState) => hardware.filter((h) => warrantyState(h.warrantyEnd) === s).length;
+
+  const shown = hardware.filter((h) => {
     const keyword = search.trim().toLowerCase();
     const matchSearch =
       keyword === "" ||
@@ -98,8 +140,7 @@ export default function HardwarePage() {
       h.serialNumber.toLowerCase().includes(keyword) ||
       h.serverName.toLowerCase().includes(keyword);
     const matchType = typeFilter === "ALL" || h.type === typeFilter;
-    const matchWarranty =
-      warrantyFilter === "ALL" || warrantyState(h.warrantyEnd) === warrantyFilter;
+    const matchWarranty = warrantyFilter === "ALL" || warrantyState(h.warrantyEnd) === warrantyFilter;
     return matchSearch && matchType && matchWarranty;
   });
 
@@ -130,15 +171,38 @@ export default function HardwarePage() {
     setError("");
   }
 
+  const noneCount = count("NONE");
+
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-bold">Quản lý phần cứng và bảo hành</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Quản lý phần cứng và bảo hành</h1>
+        <button onClick={handleReload} className="rounded border border-gray-500/30 px-4 py-2">
+          Tải lại
+        </button>
+      </div>
+
+      {/* Nguồn dữ liệu đang dùng */}
+      {source === "loading" && <p className="text-sm opacity-70">Đang tải dữ liệu từ Backend...</p>}
+      {source === "api" && (
+        <p className="rounded bg-green-100 p-3 text-sm text-green-800">
+          Dữ liệu lấy từ Backend ({hardware.length} máy chủ). Backend chưa có API lịch sử bảo trì, nên bản ghi bảo
+          trì thêm vào chỉ lưu tạm trên trình duyệt.
+        </p>
+      )}
+      {source === "mock" && (
+        <p className="rounded bg-orange-100 p-3 text-sm text-orange-800">
+          Chưa lấy được dữ liệu thật: {notice}. Đang hiển thị dữ liệu giả. Để xem dữ liệu thật, hãy đăng nhập bằng
+          email của Backend và kiểm tra địa chỉ Backend trong file .env.local.
+        </p>
+      )}
 
       {/* Thống kê */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="rounded-lg border border-gray-500/30 p-4">
           <p className="text-sm opacity-70">Tổng thiết bị</p>
-          <p className="mt-1 text-3xl font-bold">{mockHardware.length}</p>
+          <p className="mt-1 text-3xl font-bold">{hardware.length}</p>
+          {noneCount > 0 && <p className="mt-1 text-xs opacity-70">{noneCount} chưa có thông tin bảo hành</p>}
         </div>
         {(["VALID", "EXPIRING", "EXPIRED"] as WarrantyState[]).map((s) => (
           <div key={s} className="rounded-lg border border-gray-500/30 p-4">
@@ -202,7 +266,7 @@ export default function HardwarePage() {
             {shown.length === 0 && (
               <tr>
                 <td colSpan={8} className="p-6 text-center opacity-70">
-                  Không có thiết bị nào
+                  {source === "loading" ? "Đang tải..." : "Không có thiết bị nào"}
                 </td>
               </tr>
             )}
@@ -222,14 +286,16 @@ export default function HardwarePage() {
                     <td className="p-3">{TYPE_LABEL[h.type]}</td>
                     <td className="p-3">{h.serverName}</td>
                     <td className="p-3">{h.serialNumber}</td>
-                    <td className="p-3">{h.warrantyEnd}</td>
+                    <td className="p-3">{h.warrantyEnd || "—"}</td>
                     <td className="p-3">
                       <span className={`rounded px-2 py-1 text-sm ${WARRANTY_STYLE[state]}`}>
                         {WARRANTY_LABEL[state]}
                       </span>
-                      <p className="mt-1 text-xs opacity-70">
-                        {days >= 0 ? `Còn ${days} ngày` : `Quá hạn ${-days} ngày`}
-                      </p>
+                      {days !== null && (
+                        <p className="mt-1 text-xs opacity-70">
+                          {days >= 0 ? `Còn ${days} ngày` : `Quá hạn ${-days} ngày`}
+                        </p>
+                      )}
                     </td>
                     <td className="p-3">
                       <span className={`rounded px-2 py-1 text-sm ${STATUS_STYLE[h.status]}`}>
@@ -244,22 +310,19 @@ export default function HardwarePage() {
                         <div className="grid gap-1 md:grid-cols-3">
                           <p><b>Hãng:</b> {h.vendor}</p>
                           <p><b>Model:</b> {h.model}</p>
-                          <p><b>Ngày mua:</b> {h.purchaseDate}</p>
+                          <p><b>Ngày mua:</b> {h.purchaseDate || "—"}</p>
+                          {h.location && <p><b>Vị trí:</b> {h.location}</p>}
+                          {h.specs && <p className="md:col-span-2"><b>Cấu hình:</b> {h.specs}</p>}
                         </div>
 
                         <div>
-                          <h3 className="mb-2 font-bold">
-                            Lịch sử bảo trì ({history.length})
-                          </h3>
+                          <h3 className="mb-2 font-bold">Lịch sử bảo trì ({history.length})</h3>
                           {history.length === 0 ? (
                             <p className="opacity-70">Chưa có lịch sử bảo trì</p>
                           ) : (
                             <ul className="space-y-2">
                               {history.map((r) => (
-                                <li
-                                  key={r.id}
-                                  className="rounded border border-gray-500/30 p-3"
-                                >
+                                <li key={r.id} className="rounded border border-gray-500/30 p-3">
                                   <p>
                                     <b>{r.date}</b> · {MAINTENANCE_LABEL[r.type]} · {r.technician}
                                   </p>
@@ -309,9 +372,7 @@ export default function HardwarePage() {
                             onChange={(e) => setMDesc(e.target.value)}
                           />
                           {error && <p className="text-red-600">{error}</p>}
-                          <button className="rounded bg-blue-600 px-4 py-2 text-white">
-                            Lưu lịch sử
-                          </button>
+                          <button className="rounded bg-blue-600 px-4 py-2 text-white">Lưu lịch sử</button>
                         </form>
                       </td>
                     </tr>

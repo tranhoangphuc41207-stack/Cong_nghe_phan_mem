@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { mockReportItems } from "@/lib/report-mock";
 import { ReportItem, ReportLevel } from "@/types/report";
+import LiveMetrics from "./live-metrics";
 
 type ReportTab = "MONITOR" | "CAPACITY" | "POWER";
 
@@ -200,6 +201,8 @@ export default function ReportsPage() {
         )}
       </div>
 
+      {tab === "MONITOR" && <LiveMetrics />}
+      
       {/* Chọn loại báo cáo và phạm vi */}
       <div className="flex flex-wrap items-center gap-2">
         {TABS.map((t) => (
