@@ -1,3 +1,5 @@
+Check_list (danh sách kiểm tra) 
+
 X: là đã hoàn thành, C: chưa hoàn thành
 
 | Nhiệm vụ                                                                 | Người làm      | Dã hoàn thành | Mô tả                                                                                                     |
